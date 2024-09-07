@@ -5,6 +5,7 @@ urlpatterns = [
     # Property URLs
     path('properties-filter/', views.PropertyListCreateView.as_view(), name='property-list-create'),
     path('properties/', views.PropertyList.as_view(), name='property-list'),
+    path('own-properties/', views.OwnPropertyList.as_view(), name='own-property-list'),
     path('properties/<int:pk>/', views.PropertyDetail.as_view(), name='property-detail'),
 
     # PropertyImage URLs

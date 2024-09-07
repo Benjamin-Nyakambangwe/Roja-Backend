@@ -9,14 +9,40 @@ class PropertyImageSerializer(serializers.ModelSerializer):
         model = PropertyImage
         fields = ['id', 'image', 'order']
 
+# class PropertySerializer(serializers.ModelSerializer):
+#     # owner = CustomUserSerializer(read_only=True)
+#     images = PropertyImageSerializer(many=True, read_only=True)
+#     main_image = PropertyImageSerializer(read_only=True)
+
+#     class Meta:
+#         model = Property
+#         fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'main_image', 'images']
+
+
 class PropertySerializer(serializers.ModelSerializer):
-    # owner = CustomUserSerializer(read_only=True)
     images = PropertyImageSerializer(many=True, read_only=True)
     main_image = PropertyImageSerializer(read_only=True)
+    image_files = serializers.ListField(
+        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
+        write_only=True
+    )
 
     class Meta:
         model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'main_image', 'images']
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files']
+
+    def create(self, validated_data):
+        image_files = validated_data.pop('image_files')
+        property = Property.objects.create(**validated_data)
+
+        for index, image_file in enumerate(image_files):
+            PropertyImage.objects.create(property=property, image=image_file, order=index)
+
+        if image_files:
+            property.main_image = PropertyImage.objects.filter(property=property).first()
+            property.save()
+
+        return property
 
 class HouseTypeSerializer(serializers.ModelSerializer):
     class Meta:

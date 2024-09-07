@@ -94,13 +94,17 @@ class PropertyList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
 
-class PropertyList(generics.ListCreateAPIView):
-    queryset = Property.objects.all()
+class OwnPropertyList(generics.ListCreateAPIView):
     serializer_class = PropertySerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]  # Changed to IsAuthenticated
 
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+    def get_queryset(self):
+        """
+        This view should return a list of all the properties
+        for the currently authenticated user.
+        """
+        return Property.objects.filter(owner=self.request.user)
+
 
 class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Property.objects.all()
@@ -144,6 +148,7 @@ class PropertyImageDetail(generics.RetrieveUpdateDestroyAPIView):
 class HouseTypeList(generics.ListCreateAPIView):
     queryset = HouseType.objects.all()
     serializer_class = HouseTypeSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class HouseTypeDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = HouseType.objects.all()
@@ -154,6 +159,7 @@ class HouseTypeDetail(generics.RetrieveUpdateDestroyAPIView):
 class HouseLocationList(generics.ListCreateAPIView):
     queryset = HouseLocation.objects.all()
     serializer_class = HouseLocationSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 class HouseLocationDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = HouseLocation.objects.all()

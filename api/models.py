@@ -21,6 +21,8 @@ class Property(models.Model):
     accepts_pets = models.BooleanField(default=False, blank=True, null=True)
     pet_deposit = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
     accepts_smokers = models.BooleanField(default=False, blank=True, null=True) 
+    pool = models.BooleanField(default=False, blank=True, null=True)
+    garden = models.BooleanField(default=False, blank=True, null=True)
     type = models.ForeignKey('HouseType', on_delete=models.CASCADE, null=True, blank=True)
     location = models.ForeignKey('HouseLocation', on_delete=models.CASCADE, null=True, blank=True) 
     main_image = models.ForeignKey('PropertyImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
