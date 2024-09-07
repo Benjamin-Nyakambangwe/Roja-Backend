@@ -1,5 +1,6 @@
 import django_filters
-from .models import Property
+from .models import Property, HouseLocation
+
 
 class PropertyFilter(django_filters.FilterSet):
     title = django_filters.CharFilter(lookup_expr='icontains')
@@ -22,8 +23,8 @@ class PropertyFilter(django_filters.FilterSet):
     accepts_smokers = django_filters.BooleanFilter()
     pool = django_filters.BooleanFilter()
     garden = django_filters.BooleanFilter()
-    type = django_filters.ModelChoiceFilter(queryset=Property.type.field.related_model.objects.all())
-    location = django_filters.ModelChoiceFilter(queryset=Property.location.field.related_model.objects.all())
+    type = django_filters.CharFilter(field_name='type__name', lookup_expr= 'icontains')
+    location = django_filters.CharFilter(field_name='location__name', lookup_expr='icontains')
 
     class Meta:
         model = Property

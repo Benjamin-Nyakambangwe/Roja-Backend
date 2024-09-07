@@ -22,12 +22,12 @@ class ApplicationAdmin(admin.ModelAdmin):
 
 @admin.register(HouseType)
 class HouseTypeAdmin(admin.ModelAdmin):
-    list_display = ('name',)
+    list_display = ('id','name',)
     search_fields = ('name',)
 
 @admin.register(HouseLocation)
 class HouseLocation(admin.ModelAdmin):
-    list_display = ('name','city')
+    list_display = ('id','name','city')
     list_filter = ('city',)
     search_fields = ('name','city')
 
