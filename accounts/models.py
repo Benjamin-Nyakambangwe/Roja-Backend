@@ -4,7 +4,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-
+def upload_to(instance, filename):
+    return filename.format(filename=filename)
 
 class UserAccountManager(BaseUserManager):
     def create_user(self, email, first_name, last_name, user_type, password=None, **extra_fields):
@@ -121,6 +122,8 @@ class TenantProfile(models.Model):
     personal_reference_2_relation = models.CharField(max_length=50,blank=True, null=True)
     # Additional Notes
     additional_notes = models.TextField(blank=True, null=True)
+    id_image = models.ImageField(upload_to=upload_to, null=True, blank=True)
+    profile_image = models.ImageField(upload_to=upload_to, null=True, blank=True)
     # Profile Status
     is_profile_complete = models.BooleanField(default=False, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)

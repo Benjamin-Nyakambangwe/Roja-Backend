@@ -71,7 +71,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'roja_db',
         'USER': 'postgres',
-        'PASSWORD': '123456seven',
+        'PASSWORD': '123456SEVEN',
         'HOST': 'localhost'
     }
 }
@@ -131,7 +131,7 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-DOMAIN = 'http://localhost:3000'
+DOMAIN = 'localhost:3000'
 
 SITE_NAME = 'ROJA ACCOMODATION' 
 
