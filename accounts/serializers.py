@@ -25,6 +25,7 @@ class TenantProfileSerializer(serializers.ModelSerializer):
         model = TenantProfile
         fields = '__all__'
         read_only_fields = ('user', 'is_profile_complete', 'last_updated')
+        depth = 1
 
 class CustomUserSerializer(UserCreateSerializer):
     landlord_profile = LandlordProfileSerializer(required=False)
