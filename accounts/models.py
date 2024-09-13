@@ -127,12 +127,23 @@ class TenantProfile(models.Model):
     # Profile Status
     is_profile_complete = models.BooleanField(default=False, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
+    pricing_tier = models.ForeignKey('PricingTier', on_delete=models.CASCADE, blank=True, null=True)
+    num_properties = models.IntegerField(blank=True, null=True)
+
 
     def __str__(self):
         return f"Tenant Profile: {self.user.email}"
 
+class PricingTier(models.Model):
+    name = models.CharField(max_length=100, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    cost = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    max_properties = models.IntegerField(blank=True, null=True)
+    max_property_price = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    target = models.CharField(max_length=100, blank=True, null=True)
 
-
+    def __str__(self):
+        return self.name
 
 
 

@@ -81,9 +81,9 @@ from .filters import PropertyFilter
 
 
 from rest_framework import generics, permissions
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation
-from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer
-
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
+from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer
+from accounts.models import TenantProfile
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -220,3 +220,48 @@ class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+# Comment views
+class CommentList(generics.ListCreateAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_create(self, serializer):
+        tenant_profile = TenantProfile.objects.get(user=self.request.user)
+        serializer.save(tenant=tenant_profile)
+
+# Explanation:
+# This class, CommentList, is a view that handles listing all comments and creating new ones.
+# It uses Django Rest Framework's ListCreateAPIView, which provides GET (list) and POST (create) functionality.
+
+# Key points:
+# 1. queryset: Retrieves all Comment objects from the database.
+# 2. serializer_class: Uses CommentSerializer to convert Comment objects to/from JSON.
+# 3. permission_classes: Allows authenticated users to create comments, but anyone can read them.
+# 4. perform_create method: Overrides the default behavior when creating a comment.
+#    It gets the TenantProfile associated with the current user and sets it as the tenant for the new comment.
+#    This ensures that comments are always associated with the correct tenant profile.
+
+class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Comment.objects.all()
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def perform_update(self, serializer):
+        tenant_profile = TenantProfile.objects.get(user=self.request.user)
+        serializer.save(tenant=tenant_profile)
+
+class PropertyCommentList(generics.ListCreateAPIView):
+    serializer_class = CommentSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        property_id = self.kwargs['property_id']
+        return Comment.objects.filter(property_id=property_id)
+
+    def perform_create(self, serializer):
+        property_id = self.kwargs['property_id']
+        property = Property.objects.get(id=property_id)
+        tenant_profile = TenantProfile.objects.get(user=self.request.user)
+        serializer.save(tenant=tenant_profile, property=property)

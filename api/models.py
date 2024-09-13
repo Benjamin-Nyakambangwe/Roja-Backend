@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
+from accounts.models import TenantProfile
 
 def upload_to(instance, filename):
     return filename.format(filename=filename)
@@ -39,6 +40,10 @@ class Property(models.Model):
     # def clean(self):
     #     if self.images.count() >= 10:
     #         raise ValidationError("Cannot add more than 10 images to a property.")
+
+    @property
+    def tenant_comments(self):
+        return self.comments.filter(tenant__tenantprofile__isnull=False)
 
 class PropertyImage(models.Model):
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='images')
@@ -242,6 +247,31 @@ class Review(models.Model):
 #     status = models.CharField(max_length=50)
 #     created_at = models.DateTimeField(auto_now_add=True)
 #     resolved_at = models.DateTimeField(null=True, blank=True)
+
+
+
+
+class Comment(models.Model):
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='comments')
+    tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, related_name='property_comments')
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['property']),
+            models.Index(fields=['tenant']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return f"Comment by {self.tenant.user.email} on {self.property.title}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if not hasattr(self.tenant, 'tenantprofile'):
+            raise ValidationError("Only tenants can make comments on properties.")
 
 
 

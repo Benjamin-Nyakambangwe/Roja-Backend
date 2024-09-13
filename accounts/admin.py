@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import UserAccount, LandlordProfile, TenantProfile
+from .models import UserAccount, LandlordProfile, TenantProfile, PricingTier
+
+
+
 
 class CustomUserAdmin(UserAdmin):
     model = UserAccount
@@ -20,6 +23,13 @@ class CustomUserAdmin(UserAdmin):
     ordering = ('email',)
 
 admin.site.register(UserAccount, CustomUserAdmin)
+
+
+@admin.register(PricingTier)
+class PricingTierAdmin(admin.ModelAdmin):
+    list_display = ('name', 'cost', 'max_properties', 'max_property_price', 'target')
+    search_fields = ('name',)
+    ordering = ('name',)
 
 @admin.register(LandlordProfile)
 class LandlordProfileAdmin(admin.ModelAdmin):

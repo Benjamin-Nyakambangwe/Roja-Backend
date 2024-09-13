@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework import serializers
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation
-from accounts.serializers import CustomUserSerializer
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
+from accounts.serializers import CustomUserSerializer, TenantProfileSerializer
 
 
 class PropertyImageSerializer(serializers.ModelSerializer):
@@ -18,6 +18,20 @@ class PropertyImageSerializer(serializers.ModelSerializer):
 #         model = Property
 #         fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'main_image', 'images']
 
+class CommentSerializer(serializers.ModelSerializer):
+    # tenant = TenantProfileSerializer(read_only=True)
+    # property = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = Comment
+        fields = ['id', 'property', 'tenant', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['created_at', 'updated_at']
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation['tenant'] = instance.tenant.user.first_name + " " + instance.tenant.user.last_name
+        return representation
+
 
 class PropertySerializer(serializers.ModelSerializer):
     images = PropertyImageSerializer(many=True, read_only=True)
@@ -26,10 +40,11 @@ class PropertySerializer(serializers.ModelSerializer):
         child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
         write_only=True
     )
+    comments = CommentSerializer(many=True, read_only=True)
 
     class Meta:
         model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files']
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments']
 
     def create(self, validated_data):
         image_files = validated_data.pop('image_files')
@@ -125,4 +140,8 @@ class ReviewSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = LinkRequestStatus
 #         fields = '__all__'
+
+
+
+
 

@@ -34,4 +34,10 @@ urlpatterns = [
     # Review URLs
     path('reviews/', views.ReviewList.as_view(), name='review-list'),
     path('reviews/<int:pk>/', views.ReviewDetail.as_view(), name='review-detail'),
+
+
+    # Comment URLs
+    path('comments/', views.CommentList.as_view(), name='comment-list'),
+    path('comments/<int:pk>/', views.CommentDetail.as_view(), name='comment-detail'),
+    path('properties/<int:property_id>/comments/', views.PropertyCommentList.as_view(), name='property-comment-list'),
 ]
