@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
 
 
 
@@ -9,7 +9,7 @@ class PropertyImageInline(admin.TabularInline):
 
 @admin.register(Property)
 class PropertyAdmin(admin.ModelAdmin):
-    list_display = ('title', 'owner', 'price', 'bedrooms', 'bathrooms', 'accepts_pets', 'is_available')
+    list_display = ('id','title', 'owner', 'price', 'bedrooms', 'bathrooms', 'accepts_pets', 'is_available')
     list_filter = ('is_available', 'bedrooms', 'bathrooms', 'accepts_pets')
     search_fields = ('title', 'description', 'address', 'owner__email')
     inlines = [PropertyImageInline]
@@ -79,3 +79,10 @@ class PropertyImageAdmin(admin.ModelAdmin):
 #     list_filter = ('status', 'type', 'created_at')
 #     search_fields = ('url', 'anchor_text')
 #     readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+    list_display = ('property', 'tenant', 'content', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'updated_at')
+    search_fields = ('property__title', 'tenant__user__email', 'content')
+    readonly_fields = ('created_at', 'updated_at')
