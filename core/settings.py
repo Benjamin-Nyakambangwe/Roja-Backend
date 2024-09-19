@@ -47,7 +47,7 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Make sure this is correct
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -172,7 +172,7 @@ DJOSER ={
     'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,
     'SET_PASSWORD_RETYPE': True,
     'SET_USERNAME_RETYPE': True,
-    'PASSWORD_RESET_CONFIRM_URL': 'password/reset/confirm/{uid}/{token}',
+    'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
     'USERNAME_RESET_CONFIRM_URL': 'email/reset/confirm/{uid}/{token}',
     'ACTIVATION_URL': 'activate/{uid}/{token}',
     'SEND_ACTIVATION_EMAIL': True,
@@ -182,7 +182,20 @@ DJOSER ={
         'user': 'accounts.serializers.CustomUserSerializer',
         'current_user': 'accounts.serializers.CustomUserSerializer',
         'user_delete': 'djoser.serializers.UserDeleteSerializer',
-    }
+    },
+    'EMAIL': {
+        'activation': 'accounts.email.ActivationEmail',
+        'confirmation': 'accounts.email.ConfirmationEmail',
+        'password_reset': 'accounts.email.PasswordResetEmail',
+        'password_changed_confirmation': 'accounts.email.PasswordChangedConfirmationEmail',
+    },
+    'TEMPLATES': {
+        'activation': 'email/activation.html',
+        'confirmation': 'email/confirmation.html',
+        'password_reset': 'email/password_reset.html',
+        'password_changed': 'email/password_changed.html',
+    },
+'EMAIL_SUBJECT_PREFIX': '',
 }
 
 AUTH_COOKIE = 'access'

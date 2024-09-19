@@ -37,7 +37,7 @@ class LandlordProfileAdmin(admin.ModelAdmin):
     list_filter = ('is_profile_complete', 'is_verified')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone', 'emergency_contact_name')
     fieldsets = (
-        ('Personal Information', {'fields': ('user', 'date_of_birth', 'phone', 'alternate_phone')}),
+        ('Personal Information', {'fields': ('user', 'date_of_birth', 'phone', 'alternate_phone', 'profile_image', 'id_image', 'id_number', 'proof_of_residence', 'marital_status')}),
         # ('Preferences', {'fields': ('preferred_lease_term', 'accepts_pets', 'pet_deposit', 'accepts_smokers')}),
         # ('Rental Policies', {'fields': ('screening_criteria', 'required_documents')}),
         # ('Maintenance', {'fields': ('handles_own_maintenance', 'preferred_contractors')}),
@@ -53,7 +53,7 @@ class TenantProfileAdmin(admin.ModelAdmin):
     list_filter = ('is_profile_complete', 'pets', 'smoker', 'has_vehicle', 'criminal_record')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone', 'occupation', 'employer')
     fieldsets = (
-        ('Personal Information', {'fields': ('user', 'date_of_birth', 'gender', 'phone', 'emergency_contact_name', 'emergency_contact_phone')}),
+        ('Personal Information', {'fields': ('user', 'date_of_birth', 'gender', 'phone', 'emergency_contact_name', 'emergency_contact_phone', 'profile_image', 'id_image', 'id_number', 'proof_of_employment', 'marital_status')}),
         ('Employment', {'fields': ('occupation', 'employer', 'work_phone')}),
         ('Preferences', {'fields': ('preferred_lease_term', 'max_rent', 'preferred_move_in_date', 'preferred_area')}),
         ('Additional Information', {'fields': ('number_of_occupants', 'pets', 'pet_details', 'smoker', 'has_vehicle', 'num_of_vehicles')}),

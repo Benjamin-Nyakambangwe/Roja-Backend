@@ -81,6 +81,12 @@ class LandlordProfile(models.Model):
     is_verified = models.BooleanField(default=False, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)
 
+    id_image = models.FileField(upload_to=upload_to, null=True, blank=True)
+    profile_image = models.ImageField(upload_to=upload_to, null=True, blank=True)
+    id_number = models.CharField(max_length=100, blank=True, null=True)
+    proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
+    marital_status = models.CharField(max_length=100, blank=True, null=True)
+
     def __str__(self):
         return f"Landlord Profile: {self.user.email}"
 
@@ -122,8 +128,11 @@ class TenantProfile(models.Model):
     personal_reference_2_relation = models.CharField(max_length=50,blank=True, null=True)
     # Additional Notes
     additional_notes = models.TextField(blank=True, null=True)
-    id_image = models.ImageField(upload_to=upload_to, null=True, blank=True)
+    id_image = models.FileField(upload_to=upload_to, null=True, blank=True)
     profile_image = models.ImageField(upload_to=upload_to, null=True, blank=True)
+    id_number = models.CharField(max_length=100, blank=True, null=True)
+    proof_of_employment = models.FileField(upload_to=upload_to, null=True, blank=True)
+    marital_status = models.CharField(max_length=100, blank=True, null=True)
     # Profile Status
     is_profile_complete = models.BooleanField(default=False, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)

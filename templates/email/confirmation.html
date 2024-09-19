@@ -1,0 +1,93 @@
+{% load i18n %} {% block html_body %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Account Activated</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Raleway", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #3498db;
+        color: #ffffff;
+        padding: 20px;
+        text-align: center;
+      }
+      .content {
+        padding: 30px;
+      }
+      h1 {
+        color: #2c3e50;
+        margin-top: 0;
+        font-weight: 700;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #3498db;
+        color: #ffffff;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: 700;
+        margin-top: 20px;
+        transition: background-color 0.3s ease;
+      }
+      .button:hover {
+        background-color: #2980b9;
+      }
+      .footer {
+        background-color: #34495e;
+        color: #ffffff;
+        text-align: center;
+        padding: 10px;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Welcome to <br />{{ site_name }}!</h1>
+      </div>
+      <div class="content">
+        <p>
+          Your account has been successfully activated and is now ready to use!
+        </p>
+        <p>
+          You can now log in to your account and start exploring our services.
+        </p>
+        <a href="{{ protocol }}://{{ domain }}" class="button">
+          Go to {{ site_name }}
+        </a>
+        <p>
+          If you have any questions or need assistance, please don't hesitate to
+          contact our support team.
+        </p>
+      </div>
+      <div class="footer">
+        <p>Thanks for choosing {{ site_name }}!</p>
+        <p>The {{ site_name }} Team</p>
+      </div>
+    </div>
+  </body>
+</html>
+{% endblock html_body %}
