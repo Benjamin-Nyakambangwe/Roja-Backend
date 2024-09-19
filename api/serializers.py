@@ -44,7 +44,8 @@ class PropertySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments']
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments']
+        depth = 1
 
     def create(self, validated_data):
         image_files = validated_data.pop('image_files')
