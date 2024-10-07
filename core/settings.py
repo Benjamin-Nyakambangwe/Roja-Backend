@@ -221,3 +221,9 @@ SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
     'fields': 'email,first_name,last_name'
 }
 
+
+
+PAYNOW_INTEGRATION_ID = '19317'
+PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
+PAYNOW_RESULT_URL = 'http://localhost:8000/auth/result/'
+PAYNOW_RETURN_URL = 'http://localhost:3000/payment-success/'

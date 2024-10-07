@@ -1,6 +1,6 @@
-from rest_framework.views import APIView
+from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django_filters import rest_framework as filters
@@ -9,80 +9,12 @@ from django_filters import rest_framework as filters
 # from .filters import SiteFilter
 from rest_framework.permissions import AllowAny
 from .filters import PropertyFilter
+from django.db.models import Q
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
-
-
-
-
-# class OwnSiteListView(APIView):
-#     def get(self, request):
-#         # Get the authenticated user
-#         # Filter sites by the authenticated user
-#         queryset = Site.objects.all()
-#         serializer = SiteSerializer(queryset, many=True)
-#         return Response(serializer.data)
-
-# class SiteListCreateView(APIView):
-#     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-#     filterset_class = SiteFilter
-#     search_fields = ['name', 'domain', 'niche__name']
-#     ordering_fields = ['domain_authority', 'organic_traffic', 'price_per_link', 'available_slots']
-#     permission_classes = [AllowAny]
-
-#     def filter_queryset(self, queryset):
-#         for backend in list(self.filter_backends):
-#             queryset = backend().filter_queryset(self.request, queryset, self)
-#         return queryset
-
-#     def get(self, request):
-#         queryset = Site.objects.select_related('niche', 'publisher').all()
-#         filtered_queryset = self.filter_queryset(queryset)
-#         serializer = SiteSerializer(filtered_queryset, many=True)
-#         return Response(serializer.data)
-
-#     def post(self, request):
-#         serializer = SiteSerializer(data=request.data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# class SiteRetrieveUpdateDestroyView(APIView):
-#     def get_object(self, pk):
-#         try:
-#             return Site.objects.get(pk=pk)
-#         except Site.DoesNotExist:
-#             return None
-
-#     def get(self, request, pk):
-#         site = self.get_object(pk)
-#         if site is not None:
-#             serializer = SiteSerializer(site)
-#             return Response(serializer.data)
-#         return Response(status=status.HTTP_404_NOT_FOUND)
-
-#     def put(self, request, pk):
-#         site = self.get_object(pk)
-#         if site is not None:
-#             serializer = SiteSerializer(site, data=request.data)
-#             if serializer.is_valid():
-#                 serializer.save()
-#                 return Response(serializer.data)
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#         return Response(status=status.HTTP_404_NOT_FOUND)
-
-#     def delete(self, request, pk):
-#         site = self.get_object(pk)
-#         if site is not None:
-#             site.delete()
-#             return Response(status=status.HTTP_204_NO_CONTENT)
-#         return Response(status=status.HTTP_404_NOT_FOUND)
-    
-
-
-from rest_framework import generics, permissions
 from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
-from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer
+from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer
 from accounts.models import TenantProfile
 
 # Property views
@@ -180,32 +112,58 @@ class ApplicationDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
 # Message views
-class MessageList(generics.ListCreateAPIView):
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class MessageListCreateView(generics.ListCreateAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Message.objects.filter(Q(sender=user) | Q(receiver=user))
+
+    def perform_create(self, serializer):
+        receiver_id = self.request.data.get('receiver')
+        try:
+            receiver = User.objects.get(id=receiver_id)
+            serializer.save(sender=self.request.user, receiver=receiver)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid receiver ID")
+
+    def create(self, request, *args, **kwargs):
+        if 'receiver' not in request.data:
+            return Response({"error": "Receiver is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return super().create(request, *args, **kwargs)
+
+class MessageDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(sender=self.request.user)
+    def get_queryset(self):
+        user = self.request.user
+        return Message.objects.filter(sender=user) | Message.objects.filter(receiver=user)
 
-class MessageDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Message.objects.all()
-    serializer_class = MessageSerializer
+class UnreadMessageCountView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
-# LeaseAgreement views
-class LeaseAgreementList(generics.ListCreateAPIView):
-    queryset = LeaseAgreement.objects.all()
-    serializer_class = LeaseAgreementSerializer
+    def get(self, request):
+        unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
+        return Response({"unread_count": unread_count})
+
+class MarkMessageAsReadView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        serializer.save(tenant=self.request.user)
-
-class LeaseAgreementDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = LeaseAgreement.objects.all()
-    serializer_class = LeaseAgreementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    def post(self, request, pk):
+        try:
+            message = Message.objects.get(id=pk, receiver=request.user)
+            message.is_read = True
+            message.save()
+            return Response({"status": "Message marked as read"}, status=status.HTTP_200_OK)
+        except Message.DoesNotExist:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # Review views
 class ReviewList(generics.ListCreateAPIView):
@@ -265,3 +223,55 @@ class PropertyCommentList(generics.ListCreateAPIView):
         property = Property.objects.get(id=property_id)
         tenant_profile = TenantProfile.objects.get(user=self.request.user)
         serializer.save(tenant=tenant_profile, property=property)
+
+from django.db.models import Q, Max, Count, Case, When, IntegerField, F
+from django.contrib.auth import get_user_model
+from .serializers import ChatSerializer, MessageSerializer
+
+User = get_user_model()
+
+class ChatListView(generics.ListAPIView):
+    serializer_class = ChatSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        chats = Message.objects.filter(Q(sender=user) | Q(receiver=user)).values(
+            'sender', 'receiver'
+        ).annotate(
+            last_message_id=Max('id'),
+            other_user_id=Case(
+                When(sender=user, then=F('receiver')),
+                default=F('sender'),
+                output_field=IntegerField(),
+            ),
+            unread_count=Count(Case(When(receiver=user, is_read=False, then=1)))
+        ).order_by('-last_message_id')
+
+        return [
+            {
+                'other_user': User.objects.get(id=chat['other_user_id']),
+                'last_message': Message.objects.get(id=chat['last_message_id']),
+                'unread_count': chat['unread_count']
+            }
+            for chat in chats
+        ]
+
+class ChatDetailView(generics.ListAPIView):
+    serializer_class = MessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        other_user_id = self.kwargs['user_id']
+        return Message.objects.filter(
+            (Q(sender=user) & Q(receiver_id=other_user_id)) |
+            (Q(receiver=user) & Q(sender_id=other_user_id))
+        ).order_by('timestamp')
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        queryset.filter(receiver=request.user, is_read=False).update(is_read=True)
+        return super().list(request, *args, **kwargs)
+
+
