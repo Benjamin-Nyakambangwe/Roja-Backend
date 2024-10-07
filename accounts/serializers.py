@@ -22,8 +22,7 @@ class LandlordProfileSerializer(serializers.ModelSerializer):
 class PricingTierSerializer(serializers.ModelSerializer):
     class Meta:
         model = PricingTier
-        fields = '__all__'
-
+        fields = ['name']
 
 class TenantProfileSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +64,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # You can add other custom claims here
 
         return token
+
+class TenantProfileLimitedSerializer(serializers.ModelSerializer):
+    pricing_tier = PricingTierSerializer(read_only=True)
+
+    class Meta:
+        model = TenantProfile
+        fields = ['num_properties', 'subscription_plan', 'subscription_status', 'pricing_tier']

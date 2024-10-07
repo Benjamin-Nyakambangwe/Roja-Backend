@@ -24,12 +24,14 @@ urlpatterns = [
     path('applications/<int:pk>/', views.ApplicationDetail.as_view(), name='application-detail'),
 
     # Message URLs
-    path('messages/', views.MessageList.as_view(), name='message-list'),
-    path('messages/<int:pk>/', views.MessageDetail.as_view(), name='message-detail'),
+    path('messages/', views.MessageListCreateView.as_view(), name='message-list-create'),
+    path('messages/<int:pk>/', views.MessageDetailView.as_view(), name='message-detail'),
+    path('messages/unread-count/', views.UnreadMessageCountView.as_view(), name='unread-message-count'),
+    path('messages/<int:pk>/mark-read/', views.MarkMessageAsReadView.as_view(), name='mark-message-read'),
 
-    # LeaseAgreement URLs
-    path('lease-agreements/', views.LeaseAgreementList.as_view(), name='leaseagreement-list'),
-    path('lease-agreements/<int:pk>/', views.LeaseAgreementDetail.as_view(), name='leaseagreement-detail'),
+    # # LeaseAgreement URLs
+    # path('lease-agreements/', views.LeaseAgreementList.as_view(), name='leaseagreement-list'),
+    # path('lease-agreements/<int:pk>/', views.LeaseAgreementDetail.as_view(), name='leaseagreement-detail'),
 
     # Review URLs
     path('reviews/', views.ReviewList.as_view(), name='review-list'),
@@ -40,4 +42,8 @@ urlpatterns = [
     path('comments/', views.CommentList.as_view(), name='comment-list'),
     path('comments/<int:pk>/', views.CommentDetail.as_view(), name='comment-detail'),
     path('properties/<int:property_id>/comments/', views.PropertyCommentList.as_view(), name='property-comment-list'),
+
+    # Chat URLs
+    path('chats/', views.ChatListView.as_view(), name='chat-list'),
+    path('chats/<int:user_id>/', views.ChatDetailView.as_view(), name='chat-detail'),
 ]

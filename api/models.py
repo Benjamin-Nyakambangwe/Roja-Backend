@@ -27,6 +27,8 @@ class Property(models.Model):
     type = models.ForeignKey('HouseType', on_delete=models.CASCADE, null=True, blank=True)
     location = models.ForeignKey('HouseLocation', on_delete=models.CASCADE, null=True, blank=True) 
     main_image = models.ForeignKey('PropertyImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='properties_with_access')
+    current_tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='current_tenant')
 
     class Meta:
         indexes = [
@@ -143,6 +145,7 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.reviewer.email} - {self.reviewed.email}"
+
 
 
 

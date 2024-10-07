@@ -1,13 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import UserAccount, LandlordProfile, TenantProfile, PricingTier
+from .models import UserAccount, LandlordProfile, TenantProfile, PricingTier, Payment
 
 
 
 
 class CustomUserAdmin(UserAdmin):
     model = UserAccount
-    list_display = ('email', 'first_name', 'last_name', 'user_type', 'is_staff', 'is_active',)
+    list_display = ('id','email', 'first_name', 'last_name', 'user_type', 'is_staff', 'is_active',)
     list_filter = ('email', 'first_name', 'last_name', 'user_type', 'is_staff', 'is_active',)
     fieldsets = (
         (None, {'fields': ('email', 'first_name', 'last_name', 'password')}),
@@ -62,5 +62,17 @@ class TenantProfileAdmin(admin.ModelAdmin):
                                    'personal_reference_2_name', 'personal_reference_2_phone', 'personal_reference_2_relation')}),
         ('Additional Notes', {'fields': ('additional_notes',)}),
         ('Profile Status', {'fields': ('is_profile_complete', 'last_updated')}),
+        ('Subscription', {'fields': ('subscription_plan', 'subscription_status', 'pricing_tier', 'num_properties')}),
     )
     readonly_fields = ('last_updated',)
+
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'amount', 'phone', 'email', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('reference', 'phone', 'email')
+    ordering = ('-created_at',)
+
+

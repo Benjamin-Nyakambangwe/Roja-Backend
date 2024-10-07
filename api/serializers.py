@@ -2,7 +2,10 @@ from rest_framework import serializers
 from rest_framework import serializers
 from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
 from accounts.serializers import CustomUserSerializer, TenantProfileSerializer
+from django.contrib.auth import get_user_model
+from django.db.models import Max
 
+User = get_user_model()
 
 class PropertyImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -44,7 +47,7 @@ class PropertySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments']
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments', 'tenants_with_access', 'current_tenant']
         depth = 1
 
     def create(self, validated_data):
@@ -80,13 +83,53 @@ class ApplicationSerializer(serializers.ModelSerializer):
         model = Application
         fields = ['id', 'applicant', 'property', 'status', 'application_date']
 
+
+
+class ChatSerializer(serializers.Serializer):
+    other_user = serializers.SerializerMethodField()
+    last_message = serializers.SerializerMethodField()
+    unread_count = serializers.IntegerField()
+
+    def get_other_user(self, obj):
+        return {
+            'id': obj['other_user'].id,
+            'first_name': obj['other_user'].first_name,
+            'last_name': obj['other_user'].last_name,
+            'email': obj['other_user'].email,
+        }
+
+    def get_last_message(self, obj):
+        return {
+            'content': obj['last_message'].content,
+            'timestamp': obj['last_message'].timestamp,
+            'is_read': obj['last_message'].is_read,
+        }
+
 class MessageSerializer(serializers.ModelSerializer):
-    sender = CustomUserSerializer(read_only=True)
-    receiver = CustomUserSerializer(read_only=True)
+    sender = serializers.SerializerMethodField()
+    receiver = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
+    receiver_details = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Message
-        fields = ['id', 'sender', 'receiver', 'content', 'timestamp', 'is_read']
+        fields = ['id', 'sender', 'receiver', 'receiver_details', 'content', 'timestamp', 'is_read']
+        read_only_fields = ['sender', 'timestamp', 'is_read']
+
+    def get_sender(self, obj):
+        return {
+            'id': obj.sender.id,
+            'first_name': obj.sender.first_name,
+            'last_name': obj.sender.last_name,
+            'email': obj.sender.email,
+        }
+
+    def get_receiver_details(self, obj):
+        return {
+            'id': obj.receiver.id,
+            'first_name': obj.receiver.first_name,
+            'last_name': obj.receiver.last_name,
+            'email': obj.receiver.email,
+        }
 
 class LeaseAgreementSerializer(serializers.ModelSerializer):
     tenant = CustomUserSerializer(read_only=True)

@@ -139,6 +139,9 @@ class TenantProfile(models.Model):
     pricing_tier = models.ForeignKey('PricingTier', on_delete=models.CASCADE, blank=True, null=True)
     num_properties = models.IntegerField(blank=True, null=True)
 
+    subscription_plan = models.CharField(max_length=100, blank=True, null=True)
+    subscription_status = models.CharField(max_length=100, blank=True, null=True)
+
 
     def __str__(self):
         return f"Tenant Profile: {self.user.email}"
@@ -153,6 +156,20 @@ class PricingTier(models.Model):
 
     def __str__(self):
         return self.name
+    
+
+class Payment(models.Model):
+    tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, null=True, blank=True)
+    reference = models.CharField(max_length=100, null=True, blank=True)
+    poll_url = models.URLField(null=True, blank=True)
+    status = models.CharField(max_length=50, default='Initiated')
+    amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    phone = models.CharField(max_length=15, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.reference} - {self.status}"
 
 
 
