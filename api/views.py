@@ -16,6 +16,8 @@ from django.contrib.auth import get_user_model
 from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
 from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer
 from accounts.models import TenantProfile
+from collections import defaultdict  # Add this import
+
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -125,17 +127,23 @@ class MessageListCreateView(generics.ListCreateAPIView):
         return Message.objects.filter(Q(sender=user) | Q(receiver=user))
 
     def perform_create(self, serializer):
-        receiver_id = self.request.data.get('receiver')
-        try:
-            receiver = User.objects.get(id=receiver_id)
-            serializer.save(sender=self.request.user, receiver=receiver)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Invalid receiver ID")
+        serializer.save(sender=self.request.user)
 
     def create(self, request, *args, **kwargs):
-        if 'receiver' not in request.data:
-            return Response({"error": "Receiver is required"}, status=status.HTTP_400_BAD_REQUEST)
-        return super().create(request, *args, **kwargs)
+        receiver_email = request.data.get('receiver')
+        if not receiver_email:
+            return Response({"error": "Receiver email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            receiver = User.objects.get(email=receiver_email)
+        except User.DoesNotExist:
+            return Response({"error": f"User with email {receiver_email} does not exist"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(sender=self.request.user, receiver=receiver)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 class MessageDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Message.objects.all()
@@ -274,4 +282,54 @@ class ChatDetailView(generics.ListAPIView):
         queryset.filter(receiver=request.user, is_read=False).update(is_read=True)
         return super().list(request, *args, **kwargs)
 
+class AvailableChatsView(generics.ListAPIView):
+    serializer_class = ChatSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        chats = Message.objects.filter(Q(sender=user) | Q(receiver=user)).values(
+            'sender', 'receiver'
+        ).annotate(
+            last_message_id=Max('id'),
+            other_user_id=Case(
+                When(sender=user, then=F('receiver')),
+                default=F('sender'),
+                output_field=IntegerField(),
+            ),
+            unread_count=Count(Case(When(receiver=user, is_read=False, then=1))),
+            total_messages=Count('id', distinct=True)  # Use distinct=True here
+        ).order_by('-last_message_id')
+
+        chat_dict = {}
+
+        for chat in chats:
+            other_user_id = chat['other_user_id']
+            if other_user_id not in chat_dict:
+                other_user = User.objects.get(id=other_user_id)
+                chat_dict[other_user_id] = {
+                    'chat_id': f"{min(user.id, other_user_id)}_{max(user.id, other_user_id)}",
+                    'other_user': other_user,
+                    'last_message': Message.objects.get(id=chat['last_message_id']),
+                    'unread_count': chat['unread_count'],
+                    'total_messages': chat['total_messages'],
+                    'messages': set()  # Use a set instead of a list to avoid duplicates
+                }
+
+            messages = Message.objects.filter(
+                (Q(sender=user) & Q(receiver_id=other_user_id)) |
+                (Q(receiver=user) & Q(sender_id=other_user_id))
+            ).order_by('timestamp')
+
+            chat_dict[other_user_id]['messages'].update(messages)  # Use update instead of extend
+
+        # Convert sets back to sorted lists
+        for chat in chat_dict.values():
+            chat['messages'] = sorted(chat['messages'], key=lambda x: x.timestamp)
+
+        return list(chat_dict.values())
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)

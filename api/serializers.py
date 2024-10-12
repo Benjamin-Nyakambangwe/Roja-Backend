@@ -85,51 +85,40 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 
 
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    sender = serializers.EmailField(source='sender.email', read_only=True)
+    receiver = serializers.EmailField(source='receiver.email')
+
+    class Meta:
+        model = Message
+        fields = ['id', 'sender', 'receiver', 'content', 'timestamp', 'is_read']
+        read_only_fields = ['sender', 'timestamp', 'is_read']
+
+    def create(self, validated_data):
+        receiver_email = validated_data.pop('receiver')
+        receiver = User.objects.get(email=receiver_email)
+        return Message.objects.create(receiver=receiver, **validated_data)
+
+
+
 class ChatSerializer(serializers.Serializer):
+    chat_id = serializers.CharField()
     other_user = serializers.SerializerMethodField()
-    last_message = serializers.SerializerMethodField()
+    last_message = MessageSerializer()
     unread_count = serializers.IntegerField()
+    total_messages = serializers.IntegerField()
+    messages = MessageSerializer(many=True)
 
     def get_other_user(self, obj):
         return {
             'id': obj['other_user'].id,
-            'first_name': obj['other_user'].first_name,
-            'last_name': obj['other_user'].last_name,
             'email': obj['other_user'].email,
+            'first_name': obj['other_user'].first_name,
+            'last_name': obj['other_user'].last_name
         }
 
-    def get_last_message(self, obj):
-        return {
-            'content': obj['last_message'].content,
-            'timestamp': obj['last_message'].timestamp,
-            'is_read': obj['last_message'].is_read,
-        }
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender = serializers.SerializerMethodField()
-    receiver = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), write_only=True)
-    receiver_details = serializers.SerializerMethodField(read_only=True)
-
-    class Meta:
-        model = Message
-        fields = ['id', 'sender', 'receiver', 'receiver_details', 'content', 'timestamp', 'is_read']
-        read_only_fields = ['sender', 'timestamp', 'is_read']
-
-    def get_sender(self, obj):
-        return {
-            'id': obj.sender.id,
-            'first_name': obj.sender.first_name,
-            'last_name': obj.sender.last_name,
-            'email': obj.sender.email,
-        }
-
-    def get_receiver_details(self, obj):
-        return {
-            'id': obj.receiver.id,
-            'first_name': obj.receiver.first_name,
-            'last_name': obj.receiver.last_name,
-            'email': obj.receiver.email,
-        }
 
 class LeaseAgreementSerializer(serializers.ModelSerializer):
     tenant = CustomUserSerializer(read_only=True)
@@ -147,44 +136,6 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'reviewer', 'reviewed', 'property', 'rating', 'comment', 'created_at']
-
-
-
-
-# from .models import Site, LinkRequest, LinkRequestStatus, Niche
-
-
-# class NicheSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Niche
-#         fields = ['id', 'name']
-
-# class SiteSerializer(serializers.ModelSerializer):
-#     niche = NicheSerializer(read_only=True)
-#     niche_id = serializers.PrimaryKeyRelatedField(queryset=Niche.objects.all(), source='niche', write_only=True)
-
-#     class Meta:
-#         model = Site
-#         fields = '__all__'
-
-#     def to_representation(self, instance):
-#         representation = super().to_representation(instance)
-#         representation['publisher'] = instance.publisher.phone  # Assuming publisher has a name field
-#         # representation['publisher'] = instance.publisher.name  # Assuming publisher has a name field
-#         return representation
-
-
-
-# class LinkRequestSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = LinkRequest
-#         fields = '__all__'
-
-# class LinkRequestStatusSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = LinkRequestStatus
-#         fields = '__all__'
-
 
 
 

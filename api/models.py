@@ -3,6 +3,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from accounts.models import TenantProfile
+from django.contrib.auth import get_user_model
 
 def upload_to(instance, filename):
     return filename.format(filename=filename)
@@ -100,11 +101,7 @@ class Message(models.Model):
     is_read = models.BooleanField(default=False)
 
     class Meta:
-        indexes = [
-            models.Index(fields=['sender']),
-            models.Index(fields=['receiver']),
-            models.Index(fields=['timestamp']),
-        ]
+        ordering = ['timestamp']
 
     def __str__(self):
         return f"{self.sender.email} to {self.receiver.email}"
