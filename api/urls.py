@@ -46,4 +46,7 @@ urlpatterns = [
     # Chat URLs
     path('chats/', views.ChatListView.as_view(), name='chat-list'),
     path('chats/<int:user_id>/', views.ChatDetailView.as_view(), name='chat-detail'),
+
+    # New URL pattern for AvailableChatsView
+    path('available-chats/', views.AvailableChatsView.as_view(), name='available-chats'),
 ]

@@ -28,7 +28,8 @@ INSTALLED_APPS = [
     'django_filters',
     'djoser',
     'accounts',
-    'api'
+    'api',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -227,3 +228,12 @@ PAYNOW_INTEGRATION_ID = '19317'
 PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
 PAYNOW_RESULT_URL = 'http://localhost:8000/auth/result/'
 PAYNOW_RETURN_URL = 'http://localhost:3000/payment-success/'
+
+# Add Channels configuration
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}

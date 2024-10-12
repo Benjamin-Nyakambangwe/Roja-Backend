@@ -196,7 +196,13 @@ class TenantProfileListView(generics.ListAPIView):
     permission_classes = [permissions.IsAdminUser]
 
     
+class getTenantProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
 
+    def get(self, request, pk):
+        tenant_profile = TenantProfile.objects.get(id=pk)
+        serializer = TenantProfileSerializer(tenant_profile)
+        return Response(serializer.data)
 
 
     
@@ -374,6 +380,10 @@ from rest_framework import permissions, status
 from api.models import Property
 from .models import TenantProfile
 from django.db import transaction
+from django.core.mail import send_mail
+from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 class AddTenantAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -385,7 +395,7 @@ class AddTenantAccessView(APIView):
         
         try:
             property = Property.objects.get(id=property_id)
-            tenant_profile = TenantProfile.objects.get(user=request.user)
+            tenant_profile = TenantProfile.objects.get(user=self.request.user)
 
             if tenant_profile.num_properties <= 0:
                 return Response({"error": "You have reached the maximum number of properties you can access."}, status=status.HTTP_400_BAD_REQUEST)
@@ -397,7 +407,32 @@ class AddTenantAccessView(APIView):
             tenant_profile.num_properties -= 1
             tenant_profile.save()
 
-            return Response({"message": "Access granted to the property and number of accessible properties updated."}, status=status.HTTP_200_OK)
+            # Send email to landlord
+            landlord_email = property.owner.email
+            tenant_name = f"{request.user.first_name} {request.user.last_name}"
+            property_title = property.title
+
+            subject = f"New Tenant Access for Property: {property_title}"
+            message = f"Dear Landlord,\n\nA new tenant, {tenant_name}, has been granted access to your property: {property_title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+            from_email = settings.EMAIL_HOST_USER
+            recipient_list = [landlord_email]
+
+            print(f"Attempting to send email to: {landlord_email}")
+            print(f"Attempting to send email from: {settings.EMAIL_HOST_USER}")
+            try:
+                send_mail(subject, message, from_email, recipient_list)
+                print("Email sent successfully")
+            except Exception as e:
+                print(f"Error sending email: {str(e)}")
+                # You might want to add this error to the response
+                return Response({
+                    "message": "Access granted to the property and number of accessible properties updated.",
+                    "warning": f"Failed to notify landlord via email. Error: {str(e)}"
+                }, status=status.HTTP_200_OK)
+
+            return Response({
+                "message": "Access granted to the property and number of accessible properties updated. Landlord has been notified."
+            }, status=status.HTTP_200_OK)
 
         except Property.DoesNotExist:
             return Response({"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND)

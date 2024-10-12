@@ -1,7 +1,7 @@
 from django.urls import path, re_path
 from .views import CustomProviderAuthView, CustomTokenObtainPairView, CustomTokenRefreshView, CustomTokenVerifyView, LogoutView
 from .views import LandlordProfileView, TenantProfileView, LandlordProfileListView, TenantProfileListView, InitiatePaymentView, PaymentResultView, PaymentStatusView
-from .views import TenantProfileLimitedView, LandlordProfileLimitedView
+from .views import TenantProfileLimitedView, LandlordProfileLimitedView, getTenantProfileView
 from .views import AddTenantAccessView
 
 urlpatterns = [
@@ -27,6 +27,8 @@ urlpatterns = [
     path('tenant-profile-limited/', TenantProfileLimitedView.as_view(), name='tenant-profile-limited'),
     path('landlord-profile-limited/<int:pk>/', LandlordProfileLimitedView.as_view(), name='landlord-profile-limited'),
     path('add-tenant-access/<int:property_id>/', AddTenantAccessView.as_view(), name='add-tenant-access'),
+
+    path('custom-tenant-profile/<int:pk>/', getTenantProfileView.as_view(), name='get-tenant-profile'),
 ]
 
         
