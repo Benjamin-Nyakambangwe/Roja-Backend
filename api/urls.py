@@ -49,4 +49,8 @@ urlpatterns = [
 
     # New URL pattern for AvailableChatsView
     path('available-chats/', views.AvailableChatsView.as_view(), name='available-chats'),
+
+    # New URL patterns for reviews
+    path('properties-reviews/<int:property_id>', views.PropertyReviewList.as_view(), name='property-review-list'),
+    path('users-reviews/<int:user_id>', views.UserReviewList.as_view(), name='user-review-list'),
 ]

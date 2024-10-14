@@ -53,7 +53,8 @@ class PropertyListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Property.objects.all()
+        # Return properties where current_tenant is null by default
+        return Property.objects.filter(current_tenant__isnull=True)
 
     def filter_queryset(self, queryset):
         for backend in list(self.filter_backends):
@@ -62,9 +63,18 @@ class PropertyListCreateView(APIView):
 
     def get(self, request, format=None):
         queryset = self.get_queryset()
+        
+        # Check if a query parameter is provided to show all properties
+        show_all = request.query_params.get('show_all', 'false').lower() == 'true'
+        
+        if show_all:
+            queryset = Property.objects.all()
+        
         filtered_queryset = self.filter_queryset(queryset)
         serializer = PropertySerializer(filtered_queryset, many=True)
         return Response(serializer.data)
+    
+
 
 # PropertyImage views
 class PropertyImageList(generics.ListCreateAPIView):
@@ -177,10 +187,16 @@ class MarkMessageAsReadView(generics.GenericAPIView):
 class ReviewList(generics.ListCreateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(reviewer=self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        print("User:", request.user)
+        print("Auth:", request.auth)
+        print("Headers:", request.headers)
+        return super().create(request, *args, **kwargs)
 
 class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
@@ -333,3 +349,19 @@ class AvailableChatsView(generics.ListAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+
+class PropertyReviewList(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        property_id = self.kwargs['property_id']
+        return Review.objects.filter(property_id=property_id)
+
+class UserReviewList(generics.ListAPIView):
+    serializer_class = ReviewSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        user_id = self.kwargs['user_id']
+        return Review.objects.filter(reviewed_id=user_id)
