@@ -342,6 +342,7 @@ from rest_framework.response import Response
 from rest_framework import permissions, status
 from .models import TenantProfile
 from .serializers import TenantProfileLimitedSerializer
+from django.shortcuts import get_object_or_404
 
 class TenantProfileLimitedView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -383,8 +384,6 @@ from django.db import transaction
 from django.core.mail import send_mail
 from django.conf import settings
 
-logger = logging.getLogger(__name__)
-
 class AddTenantAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -395,7 +394,7 @@ class AddTenantAccessView(APIView):
         
         try:
             property = Property.objects.get(id=property_id)
-            tenant_profile = TenantProfile.objects.get(user=self.request.user)
+            tenant_profile = TenantProfile.objects.get(user=request.user)
 
             if tenant_profile.num_properties <= 0:
                 return Response({"error": "You have reached the maximum number of properties you can access."}, status=status.HTTP_400_BAD_REQUEST)
@@ -438,3 +437,89 @@ class AddTenantAccessView(APIView):
             return Response({"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND)
         except TenantProfile.DoesNotExist:
             return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import permissions, status
+from api.models import Property
+from .models import TenantProfile
+from django.shortcuts import get_object_or_404
+import logging
+
+logger = logging.getLogger(__name__)
+
+class SetCurrentTenantView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, property_id):
+        if request.user.user_type != 'landlord':
+            return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
+        
+        property = get_object_or_404(Property, id=property_id, owner=request.user)
+        tenant_id = request.data.get('tenant_id')
+        
+        if not tenant_id:
+            return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+        except TenantProfile.DoesNotExist:
+            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Store previous tenants with access
+        previous_tenants = list(property.tenants_with_access.all())
+
+        # Set current tenant
+        property.current_tenant = tenant_profile.user
+        
+        # Clear tenants with access except for the winning tenant
+        property.tenants_with_access.clear()
+        property.tenants_with_access.add(tenant_profile.user)
+        
+        property.save()
+
+        # Send email to the winning tenant
+        self.send_email_to_winning_tenant(tenant_profile.user, property)
+
+        # Send email to the landlord
+        self.send_email_to_landlord(request.user, tenant_profile.user, property)
+
+        # Send emails to other tenants who had access
+        self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
+        
+        return Response({
+            "message": f"Current tenant set for property {property.title}. Notifications sent.",
+            "property_id": property.id,
+            "tenant_id": tenant_profile.id,
+            "tenant_name": f"{tenant_profile.user.first_name} {tenant_profile.user.last_name}"
+        }, status=status.HTTP_200_OK)
+
+    def send_email_to_winning_tenant(self, tenant, property):
+        subject = f"Congratulations! You've been selected for {property.title}"
+        message = f"Dear {tenant.first_name},\n\nCongratulations! You have been selected as the tenant for the property: {property.title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+        self.send_email(subject, message, [tenant.email])
+
+    def send_email_to_landlord(self, landlord, tenant, property):
+        subject = f"Tenant Selected for {property.title}"
+        message = f"Dear {landlord.first_name},\n\nThis is to confirm that you have selected {tenant.first_name} {tenant.last_name} as the tenant for your property: {property.title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+        self.send_email(subject, message, [landlord.email])
+
+    def send_emails_to_other_tenants(self, previous_tenants, winning_tenant, property):
+        for tenant in previous_tenants:
+            if tenant != winning_tenant:
+                subject = f"Update on {property.title}"
+                message = f"Dear {tenant.first_name},\n\nWe regret to inform you that you were not selected for the property: {property.title}. We appreciate your interest and encourage you to explore other available properties.\n\nBest regards,\nROJA ACCOMODATION Team"
+                self.send_email(subject, message, [tenant.email])
+
+    def send_email(self, subject, message, recipient_list):
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER,
+                recipient_list,
+                fail_silently=False,
+            )
+        except Exception as e:
+            logger.error(f"Failed to send email. Error: {str(e)}")
+            print(f"Failed to send email. Error: {str(e)}")
