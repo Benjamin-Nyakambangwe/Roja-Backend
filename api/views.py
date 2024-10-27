@@ -190,7 +190,29 @@ class ReviewList(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(reviewer=self.request.user)
+        property_id = self.request.data.get('property')
+        reviewed_id = self.request.data.get('reviewed')
+        
+        if not property_id:
+            raise serializers.ValidationError("Property ID is required")
+        if not reviewed_id:
+            raise serializers.ValidationError("Reviewed user ID is required")
+        
+        try:
+            property_instance = Property.objects.get(id=property_id)
+        except Property.DoesNotExist:
+            raise serializers.ValidationError("Invalid Property ID")
+        
+        try:
+            reviewed_user = get_user_model().objects.get(id=reviewed_id)
+        except get_user_model().DoesNotExist:
+            raise serializers.ValidationError("Invalid Reviewed User ID")
+        
+        serializer.save(
+            reviewer=self.request.user,
+            property=property_instance,
+            reviewed=reviewed_user
+        )
 
     def create(self, request, *args, **kwargs):
         print("User:", request.user)
@@ -210,8 +232,7 @@ class CommentList(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
-        tenant_profile = TenantProfile.objects.get(user=self.request.user)
-        serializer.save(tenant=tenant_profile)
+        serializer.save(commenter=self.request.user)
 
 # Explanation:
 # This class, CommentList, is a view that handles listing all comments and creating new ones.
@@ -231,8 +252,7 @@ class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def perform_update(self, serializer):
-        tenant_profile = TenantProfile.objects.get(user=self.request.user)
-        serializer.save(tenant=tenant_profile)
+        serializer.save(commenter=self.request.user)
 
 class PropertyCommentList(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
@@ -245,8 +265,7 @@ class PropertyCommentList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         property_id = self.kwargs['property_id']
         property = Property.objects.get(id=property_id)
-        tenant_profile = TenantProfile.objects.get(user=self.request.user)
-        serializer.save(tenant=tenant_profile, property=property)
+        serializer.save(commenter=self.request.user, property=property)
 
 from django.db.models import Q, Max, Count, Case, When, IntegerField, F
 from django.contrib.auth import get_user_model
@@ -365,3 +384,61 @@ class UserReviewList(generics.ListAPIView):
     def get_queryset(self):
         user_id = self.kwargs['user_id']
         return Review.objects.filter(reviewed_id=user_id)
+
+# class SetCurrentTenantView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def post(self, request, property_id):
+#         if request.user.user_type != 'landlord':
+#             return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
+        
+#         from django.shortcuts import get_object_or_404
+#         property = get_object_or_404(Property, id=property_id, owner=request.user)
+#         tenant_id = request.data.get('tenant_id')
+        
+#         if not tenant_id:
+#             return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+#         try:
+#             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+#         except TenantProfile.DoesNotExist:
+#             return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+#         # Store previous tenants with access
+#         previous_tenants = list(property.tenants_with_access.all())
+
+#         # Add current tenant to previous tenants if it exists
+#         # if property.current_tenant is not None:
+#         #     property.previous_tenants.add(property.current_tenant)
+
+#         # Set current tenant
+#         property.current_tenant = tenant_profile.user
+        
+#         # Clear tenants with access except for the winning tenant
+#         property.tenants_with_access.clear()
+#         property.tenants_with_access.add(tenant_profile.user)
+        
+#         # Add previous tenants to previous_tenants_with_access
+#         # for tenant in previous_tenants:
+#         #     if tenant != tenant_profile.user:
+#         #         property.previous_tenants_with_access.add(tenant)
+        
+#         property.save()
+
+#         # Send email to the winning tenant
+#         self.send_email_to_winning_tenant(tenant_profile.user, property)
+
+#         # Send email to the landlord
+#         self.send_email_to_landlord(request.user, tenant_profile.user, property)
+
+#         # Send emails to other tenants who had access
+#         self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
+        
+#         return Response({
+#             "message": f"Current tenant set for property {property.title}. Notifications sent.",
+#             "property_id": property.id,
+#             "tenant_id": tenant_profile.user.id,
+#             "tenant_name": f"{tenant_profile.user.first_name} {tenant_profile.user.last_name}"
+#         }, status=status.HTTP_200_OK)
+
+#     # ... (keep the email sending methods as they were)

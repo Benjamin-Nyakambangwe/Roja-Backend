@@ -27,12 +27,12 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'property', 'tenant', 'content', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'property', 'commenter', 'is_owner', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['commenter','created_at', 'updated_at']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['tenant'] = instance.tenant.user.first_name + " " + instance.tenant.user.last_name
+        representation['commenter'] = instance.commenter.first_name + " " + instance.commenter.last_name
         return representation
 
 
@@ -60,7 +60,6 @@ class PropertySerializer(serializers.ModelSerializer):
         if image_files:
             property.main_image = PropertyImage.objects.filter(property=property).first()
             property.save()
-
         return property
 
 class HouseTypeSerializer(serializers.ModelSerializer):

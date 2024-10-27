@@ -200,7 +200,7 @@ class getTenantProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
-        tenant_profile = TenantProfile.objects.get(id=pk)
+        tenant_profile = TenantProfile.objects.get(user__id=pk)
         serializer = TenantProfileSerializer(tenant_profile)
         return Response(serializer.data)
 
@@ -448,6 +448,88 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# class SetCurrentTenantView(APIView):
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     def post(self, request, property_id):
+#         if request.user.user_type != 'landlord':
+#             return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
+        
+#         property = get_object_or_404(Property, id=property_id, owner=request.user)
+#         tenant_id = request.data.get('tenant_id')
+        
+#         if not tenant_id:
+#             return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+#         try:
+#             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+#         except TenantProfile.DoesNotExist:
+#             return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+#         # Store previous tenants with access
+#         previous_tenants = list(property.tenants_with_access.all())
+
+#         # Add current tenant to previous tenants
+#         property.previous_tenants.add(property.current_tenant)
+
+#         # Set current tenant
+#         property.current_tenant = tenant_profile.user
+        
+#         # Clear tenants with access except for the winning tenant
+#         property.tenants_with_access.clear()
+#         property.tenants_with_access.add(tenant_profile.user)
+#         property.previous_tenants_with_access.add(previous_tenants)
+        
+#         property.save()
+
+#         # Send email to the winning tenant
+#         self.send_email_to_winning_tenant(tenant_profile.user, property)
+
+#         # Send email to the landlord
+#         self.send_email_to_landlord(request.user, tenant_profile.user, property)
+
+#         # Send emails to other tenants who had access
+#         self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
+        
+#         return Response({
+#             "message": f"Current tenant set for property {property.title}. Notifications sent.",
+#             "property_id": property.id,
+#             "tenant_id": tenant_profile.id,
+#             "tenant_name": f"{tenant_profile.user.first_name} {tenant_profile.user.last_name}"
+#         }, status=status.HTTP_200_OK)
+
+#     def send_email_to_winning_tenant(self, tenant, property):
+#         subject = f"Congratulations! You've been selected for {property.title}"
+#         message = f"Dear {tenant.first_name},\n\nCongratulations! You have been selected as the tenant for the property: {property.title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+#         self.send_email(subject, message, [tenant.email])
+
+#     def send_email_to_landlord(self, landlord, tenant, property):
+#         subject = f"Tenant Selected for {property.title}"
+#         message = f"Dear {landlord.first_name},\n\nThis is to confirm that you have selected {tenant.first_name} {tenant.last_name} as the tenant for your property: {property.title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+#         self.send_email(subject, message, [landlord.email])
+
+#     def send_emails_to_other_tenants(self, previous_tenants, winning_tenant, property):
+#         for tenant in previous_tenants:
+#             if tenant != winning_tenant:
+#                 subject = f"Update on {property.title}"
+#                 message = f"Dear {tenant.first_name},\n\nWe regret to inform you that you were not selected for the property: {property.title}. We appreciate your interest and encourage you to explore other available properties.\n\nBest regards,\nROJA ACCOMODATION Team"
+#                 self.send_email(subject, message, [tenant.email])
+
+#     def send_email(self, subject, message, recipient_list):
+#         try:
+#             send_mail(
+#                 subject,
+#                 message,
+#                 settings.EMAIL_HOST_USER,
+#                 recipient_list,
+#                 fail_silently=False,
+#             )
+#         except Exception as e:
+#             logger.error(f"Failed to send email. Error: {str(e)}")
+#             print(f"Failed to send email. Error: {str(e)}")
+
+
+
 class SetCurrentTenantView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -474,6 +556,7 @@ class SetCurrentTenantView(APIView):
         
         # Clear tenants with access except for the winning tenant
         property.tenants_with_access.clear()
+        property.previous_tenants_with_access.add(*previous_tenants)
         property.tenants_with_access.add(tenant_profile.user)
         
         property.save()
@@ -523,3 +606,32 @@ class SetCurrentTenantView(APIView):
         except Exception as e:
             logger.error(f"Failed to send email. Error: {str(e)}")
             print(f"Failed to send email. Error: {str(e)}")
+
+
+
+class RevokeCurrentTenantView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, property_id):
+        if request.user.user_type != 'landlord':
+            return Response({"error": "Only landlords can revoke current tenants."}, status=status.HTTP_403_FORBIDDEN)
+        
+        property = get_object_or_404(Property, id=property_id, owner=request.user)
+        tenant_id = request.data.get('tenant_id')
+        
+        if not tenant_id:
+            return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+            tenant_user = tenant_profile.user
+        except TenantProfile.DoesNotExist:
+            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        
+        property.current_tenant = None
+        # property.tenants_with_access.remove(tenant_user)  # Change this line
+        property.previous_tenants.add(tenant_user)
+        property.save()
+
+        return Response({"message": f"Current tenant revoked for property {property.title}."}, status=status.HTTP_200_OK)
+

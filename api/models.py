@@ -30,7 +30,8 @@ class Property(models.Model):
     main_image = models.ForeignKey('PropertyImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='properties_with_access')
     current_tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='current_tenant')
-
+    previous_tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties_with_access')
+    previous_tenants = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties')
     class Meta:
         indexes = [
             models.Index(fields=['owner']),
@@ -250,10 +251,14 @@ class Review(models.Model):
 
 
 
-
 class Comment(models.Model):
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='comments')
-    tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, related_name='property_comments')
+    commenter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.CASCADE, 
+        related_name='property_comments',
+    )
+    is_owner = models.BooleanField(default=False)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -261,17 +266,44 @@ class Comment(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=['property']),
-            models.Index(fields=['tenant']),
+            models.Index(fields=['commenter']),
             models.Index(fields=['created_at']),
         ]
 
     def __str__(self):
-        return f"Comment by {self.tenant.user.email} on {self.property.title}"
+        return f"Comment by {self.commenter.email} on {self.property.title}"
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        if not hasattr(self.tenant, 'tenantprofile'):
-            raise ValidationError("Only tenants can make comments on properties.")
+        if not (hasattr(self.commenter, 'tenantprofile') or self.property.owner == self.commenter):
+            raise ValidationError("Only tenants or the property owner can make comments on properties.")
+        
+
+
+
+
+# class Comment(models.Model):
+#     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='comments')
+#     tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, related_name='property_comments')
+#     content = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
+
+#     class Meta:
+#         indexes = [
+#             models.Index(fields=['property']),
+#             models.Index(fields=['tenant']),
+#             models.Index(fields=['created_at']),
+#         ]
+
+#     def __str__(self):
+#         return f"Comment by {self.tenant.user.email} on {self.property.title}"
+
+#     def clean(self):
+#         from django.core.exceptions import ValidationError
+#         if not hasattr(self.tenant, 'tenantprofile'):
+#             raise ValidationError("Only tenants can make comments on properties.")
+
 
 
 
