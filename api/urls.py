@@ -53,4 +53,11 @@ urlpatterns = [
     # New URL patterns for reviews
     path('properties-reviews/<int:property_id>', views.PropertyReviewList.as_view(), name='property-review-list'),
     path('users-reviews/<int:user_id>', views.UserReviewList.as_view(), name='user-review-list'),
+
+    
+    path('current-user/', views.CurrentUserView.as_view(), name='current-user'),
+
+    # Add these to your urlpatterns
+    path('comments/<int:pk>/like/', views.CommentLikeView.as_view(), name='comment-like'),
+    path('comments/<int:pk>/dislike/', views.CommentDislikeView.as_view(), name='comment-dislike'),
 ]

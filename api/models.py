@@ -258,10 +258,12 @@ class Comment(models.Model):
         on_delete=models.CASCADE, 
         related_name='property_comments',
     )
-    is_owner = models.BooleanField(default=False)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_owner = models.BooleanField(default=False)
+    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='liked_comments', blank=True)
+    dislikes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='disliked_comments', blank=True)
 
     class Meta:
         indexes = [
@@ -277,7 +279,63 @@ class Comment(models.Model):
         from django.core.exceptions import ValidationError
         if not (hasattr(self.commenter, 'tenantprofile') or self.property.owner == self.commenter):
             raise ValidationError("Only tenants or the property owner can make comments on properties.")
-        
+
+    def get_like_count(self):
+        """
+        Get the number of likes for this comment
+        """
+        return self.likes.count()
+
+    def get_dislike_count(self):
+        """
+        Get the number of dislikes for this comment
+        """
+        return self.dislikes.count()
+
+    def toggle_like(self, user):
+        """
+        Toggle like for a comment. Remove dislike if exists.
+        """
+        print(f"Toggle like called for user {user.email} on comment {self.id}")
+        if user in self.likes.all():
+            print(f"User {user.email} already liked comment {self.id}, removing like")
+            self.likes.remove(user)
+            return False
+        else:
+            print(f"User {user.email} liking comment {self.id}")
+            self.dislikes.remove(user)  # Remove dislike if exists
+            self.likes.add(user)
+            return True
+
+    def toggle_dislike(self, user):
+        """
+        Toggle dislike for a comment. Remove like if exists.
+        """
+        if user in self.dislikes.all():
+            self.dislikes.remove(user)
+            return False
+        else:
+            self.likes.remove(user)  # Remove like if exists
+            self.dislikes.add(user)
+            return True
+
+    def has_user_liked(self, user):
+        """
+        Check if a user has liked the comment
+        """
+        return user in self.likes.all()
+
+    def has_user_disliked(self, user):
+        """
+        Check if a user has disliked the comment
+        """
+        return user in self.dislikes.all()
+
+
+
+
+
+
 
 
 

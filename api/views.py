@@ -18,6 +18,8 @@ from .serializers import PropertySerializer, PropertyImageSerializer, Applicatio
 from accounts.models import TenantProfile
 from collections import defaultdict  # Add this import
 
+from accounts.serializers import CustomUserSerializer
+
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -53,7 +55,6 @@ class PropertyListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        # Return properties where current_tenant is null by default
         return Property.objects.filter(current_tenant__isnull=True)
 
     def filter_queryset(self, queryset):
@@ -64,14 +65,13 @@ class PropertyListCreateView(APIView):
     def get(self, request, format=None):
         queryset = self.get_queryset()
         
-        # Check if a query parameter is provided to show all properties
         show_all = request.query_params.get('show_all', 'false').lower() == 'true'
         
         if show_all:
             queryset = Property.objects.all()
         
         filtered_queryset = self.filter_queryset(queryset)
-        serializer = PropertySerializer(filtered_queryset, many=True)
+        serializer = PropertySerializer(filtered_queryset, many=True, context={'request': request})
         return Response(serializer.data)
     
 
@@ -442,3 +442,58 @@ class UserReviewList(generics.ListAPIView):
 #         }, status=status.HTTP_200_OK)
 
 #     # ... (keep the email sending methods as they were)
+
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = CustomUserSerializer(request.user)
+        return Response(serializer.data)
+
+class CommentLikeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            print(f"Attempting to like comment {pk} by user {request.user.email}")
+            comment = Comment.objects.get(pk=pk)
+            print(f"Found comment: {comment}")
+            print(f"Current likes: {comment.get_like_count()}")
+            liked = comment.toggle_like(request.user)
+            print(f"After toggle - liked: {liked}, new count: {comment.get_like_count()}")
+            return Response({
+                'liked': liked,
+                'like_count': comment.get_like_count(),
+                'dislike_count': comment.get_dislike_count(),
+                'has_liked': comment.has_user_liked(request.user),
+                'has_disliked': comment.has_user_disliked(request.user)
+            })
+        except Comment.DoesNotExist:
+            return Response(
+                {'error': 'Comment not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            print(f"Error in like view: {str(e)}")
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+class CommentDislikeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            comment = Comment.objects.get(pk=pk)
+            disliked = comment.toggle_dislike(request.user)
+            return Response({
+                'disliked': disliked,
+                'like_count': comment.get_like_count(),
+                'dislike_count': comment.get_dislike_count()
+            })
+        except Comment.DoesNotExist:
+            return Response(
+                {'error': 'Comment not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )

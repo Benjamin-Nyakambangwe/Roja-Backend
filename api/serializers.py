@@ -22,13 +22,31 @@ class PropertyImageSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'main_image', 'images']
 
 class CommentSerializer(serializers.ModelSerializer):
-    # tenant = TenantProfileSerializer(read_only=True)
-    # property = serializers.PrimaryKeyRelatedField(read_only=True)
+    like_count = serializers.SerializerMethodField()
+    dislike_count = serializers.SerializerMethodField()
+    has_liked = serializers.SerializerMethodField()
+    has_disliked = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'property', 'commenter', 'is_owner', 'content', 'created_at', 'updated_at']
-        read_only_fields = ['commenter','created_at', 'updated_at']
+        fields = ['id', 'property', 'commenter', 'is_owner', 'content', 
+                 'created_at', 'updated_at', 'like_count', 'dislike_count',
+                 'has_liked', 'has_disliked']
+        read_only_fields = ['commenter', 'created_at', 'updated_at']
+
+    def get_like_count(self, obj):
+        return obj.get_like_count()
+
+    def get_dislike_count(self, obj):
+        return obj.get_dislike_count()
+
+    def get_has_liked(self, obj):
+        user = self.context['request'].user
+        return obj.has_user_liked(user) if user.is_authenticated else False
+
+    def get_has_disliked(self, obj):
+        user = self.context['request'].user
+        return obj.has_user_disliked(user) if user.is_authenticated else False
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
