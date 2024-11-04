@@ -54,32 +54,6 @@ class CommentSerializer(serializers.ModelSerializer):
         return representation
 
 
-class PropertySerializer(serializers.ModelSerializer):
-    images = PropertyImageSerializer(many=True, read_only=True)
-    main_image = PropertyImageSerializer(read_only=True)
-    image_files = serializers.ListField(
-        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
-        write_only=True
-    )
-    comments = CommentSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 'garden', 'type', 'location', 'main_image', 'images', 'image_files', 'comments', 'tenants_with_access', 'current_tenant']
-        depth = 1
-
-    def create(self, validated_data):
-        image_files = validated_data.pop('image_files')
-        property = Property.objects.create(**validated_data)
-
-        for index, image_file in enumerate(image_files):
-            PropertyImage.objects.create(property=property, image=image_file, order=index)
-
-        if image_files:
-            property.main_image = PropertyImage.objects.filter(property=property).first()
-            property.save()
-        return property
-
 class HouseTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseType
@@ -89,6 +63,53 @@ class HouseLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseLocation
         fields = ['id', 'name', 'city']
+
+
+class PropertySerializer(serializers.ModelSerializer):
+    images = PropertyImageSerializer(many=True, read_only=True)
+    main_image = PropertyImageSerializer(read_only=True)
+    image_files = serializers.ListField(
+        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
+        write_only=True
+    )
+    comments = CommentSerializer(many=True, read_only=True)
+    type = serializers.PrimaryKeyRelatedField(queryset=HouseType.objects.all(), required=False, write_only=True)
+    location = serializers.PrimaryKeyRelatedField(queryset=HouseLocation.objects.all(), required=False, write_only=True)
+    type_detail = HouseTypeSerializer(source='type', read_only=True)
+    location_detail = HouseLocationSerializer(source='location', read_only=True)
+
+    class Meta:
+        model = Property
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 
+                 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 
+                 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 
+                 'garden', 'type', 'location', 'type_detail', 'location_detail', 
+                 'main_image', 'images', 'image_files', 'comments', 
+                 'tenants_with_access', 'current_tenant']
+        depth = 1
+
+    def create(self, validated_data):
+        image_files = validated_data.pop('image_files')
+        type_id = validated_data.pop('type', None)
+        location_id = validated_data.pop('location', None)
+        
+        property = Property.objects.create(**validated_data)
+
+        if type_id:
+            property.type = type_id
+        if location_id:
+            property.location = location_id
+        property.save()
+
+        for index, image_file in enumerate(image_files):
+            PropertyImage.objects.create(property=property, image=image_file, order=index)
+
+        if image_files:
+            property.main_image = PropertyImage.objects.filter(property=property).first()
+            property.save()
+            
+        return property
+
 
 
 
