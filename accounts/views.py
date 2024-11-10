@@ -11,7 +11,8 @@ from rest_framework.response import Response
 from rest_framework import status as drf_status
 from .models import LandlordProfile, TenantProfile, PricingTier
 from .serializers import LandlordProfileSerializer, TenantProfileSerializer
-
+from api.models import RentPayment
+from django.utils import timezone
 
 class CustomProviderAuthView(ProviderAuthView):
     def post(self, request, *args, **kwargs):
@@ -349,14 +350,14 @@ class TenantProfileLimitedView(APIView):
 
     def get(self, request):
         if request.user.user_type != 'tenant':
-            return Response({"error": "Only tenants can access this information."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only tenants can access this information."}, status=drf_status.HTTP_403_FORBIDDEN)
         
         try:
             tenant_profile = TenantProfile.objects.get(user=request.user)
             serializer = TenantProfileLimitedSerializer(tenant_profile)
             return Response(serializer.data)
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
         
 
 
@@ -365,14 +366,14 @@ class LandlordProfileLimitedView(APIView):
 
     def get(self, request, pk):
         if request.user.user_type != 'tenant':
-            return Response({"error": "Only tenants can access this information."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only tenants can access this information."}, status=drf_status.HTTP_403_FORBIDDEN)
         
         try:
             landlord_profile = LandlordProfile.objects.get(id=pk)
             serializer = LandlordProfileSerializer(landlord_profile)
             return Response(serializer.data)
         except LandlordProfile.DoesNotExist:
-            return Response({"error": "Landlord profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Landlord profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
 from rest_framework.views import APIView
@@ -390,7 +391,7 @@ class AddTenantAccessView(APIView):
     @transaction.atomic
     def post(self, request, property_id):
         if request.user.user_type != 'tenant':
-            return Response({"error": "Only tenants can access properties."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only tenants can access properties."}, status=drf_status.HTTP_403_FORBIDDEN)
         
         try:
             property = Property.objects.get(id=property_id)
@@ -400,7 +401,7 @@ class AddTenantAccessView(APIView):
                 return Response({"error": "You have reached the maximum number of properties you can access."}, status=status.HTTP_400_BAD_REQUEST)
 
             if request.user in property.tenants_with_access.all():
-                return Response({"error": "You already have access to this property."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "You already have access to this property."}, status=drf_status.HTTP_400_BAD_REQUEST)
 
             property.tenants_with_access.add(request.user)
             tenant_profile.num_properties -= 1
@@ -434,9 +435,9 @@ class AddTenantAccessView(APIView):
             }, status=status.HTTP_200_OK)
 
         except Property.DoesNotExist:
-            return Response({"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Property not found."}, status=drf_status.HTTP_404_NOT_FOUND)
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -535,47 +536,56 @@ class SetCurrentTenantView(APIView):
 
     def post(self, request, property_id):
         if request.user.user_type != 'landlord':
-            return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only landlords can set current tenants."}, status=drf_status.HTTP_403_FORBIDDEN)
         
         property = get_object_or_404(Property, id=property_id, owner=request.user)
         tenant_id = request.data.get('tenant_id')
         
         if not tenant_id:
-            return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant ID is required."}, status=drf_status.HTTP_400_BAD_REQUEST)
         
         try:
             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+            tenant_user = tenant_profile.user
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
         
         # Store previous tenants with access
         previous_tenants = list(property.tenants_with_access.all())
 
         # Set current tenant
-        property.current_tenant = tenant_profile.user
+        property.current_tenant = tenant_user
         
         # Clear tenants with access except for the winning tenant
         property.tenants_with_access.clear()
         property.previous_tenants_with_access.add(*previous_tenants)
-        property.tenants_with_access.add(tenant_profile.user)
+        property.tenants_with_access.add(tenant_user)
+        
+        # Create first rent payment if in-app payments are accepted
+        if property.accepts_in_app_payment:
+            next_month = timezone.now().date() + timezone.timedelta(days=30)
+            RentPayment.objects.create(
+                property=property,
+                tenant=tenant_user,
+                amount=property.price,
+                due_date=next_month,
+                status='PENDING'
+            )
         
         property.save()
 
-        # Send email to the winning tenant
-        self.send_email_to_winning_tenant(tenant_profile.user, property)
-
-        # Send email to the landlord
-        self.send_email_to_landlord(request.user, tenant_profile.user, property)
-
-        # Send emails to other tenants who had access
-        self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
+        # Send notifications...
+        self.send_email_to_winning_tenant(tenant_user, property)
+        self.send_email_to_landlord(request.user, tenant_user, property)
+        self.send_emails_to_other_tenants(previous_tenants, tenant_user, property)
         
         return Response({
             "message": f"Current tenant set for property {property.title}. Notifications sent.",
             "property_id": property.id,
-            "tenant_id": tenant_profile.id,
-            "tenant_name": f"{tenant_profile.user.first_name} {tenant_profile.user.last_name}"
-        }, status=status.HTTP_200_OK)
+            "tenant_id": tenant_profile.user.id,
+            "tenant_name": f"{tenant_profile.user.first_name} {tenant_profile.user.last_name}",
+            "rent_payment_created": property.accepts_in_app_payment
+        })
 
     def send_email_to_winning_tenant(self, tenant, property):
         subject = f"Congratulations! You've been selected for {property.title}"
@@ -614,24 +624,24 @@ class RevokeCurrentTenantView(APIView):
 
     def post(self, request, property_id):
         if request.user.user_type != 'landlord':
-            return Response({"error": "Only landlords can revoke current tenants."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only landlords can revoke current tenants."}, status=drf_status.HTTP_403_FORBIDDEN)
         
         property = get_object_or_404(Property, id=property_id, owner=request.user)
         tenant_id = request.data.get('tenant_id')
         
         if not tenant_id:
-            return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Tenant ID is required."}, status=drf_status.HTTP_400_BAD_REQUEST)
         
         try:
             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
             tenant_user = tenant_profile.user
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
         
         property.current_tenant = None
         # property.tenants_with_access.remove(tenant_user)  # Change this line
         property.previous_tenants.add(tenant_user)
         property.save()
 
-        return Response({"message": f"Current tenant revoked for property {property.title}."}, status=status.HTTP_200_OK)
+        return Response({"message": f"Current tenant revoked for property {property.title}."}, status=drf_status.HTTP_200_OK)
 

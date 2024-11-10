@@ -60,4 +60,9 @@ urlpatterns = [
     # Add these to your urlpatterns
     path('comments/<int:pk>/like/', views.CommentLikeView.as_view(), name='comment-like'),
     path('comments/<int:pk>/dislike/', views.CommentDislikeView.as_view(), name='comment-dislike'),
+
+    # Add these to your urlpatterns
+    path('rent-payments/', views.RentPaymentListView.as_view(), name='rent-payment-list'),
+    path('properties/<int:property_id>/rent-payments/', views.PropertyRentPaymentsView.as_view(), name='property-rent-payments'),
+    path('rent-payments/<int:payment_id>/process/', views.ProcessRentPaymentView.as_view(), name='process-rent-payment'),
 ]

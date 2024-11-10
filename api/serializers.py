@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework import serializers
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment
 from accounts.serializers import CustomUserSerializer, TenantProfileSerializer
 from django.contrib.auth import get_user_model
 from django.db.models import Max
@@ -85,7 +85,8 @@ class PropertySerializer(serializers.ModelSerializer):
                  'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 
                  'garden', 'type', 'location', 'type_detail', 'location_detail', 
                  'main_image', 'images', 'image_files', 'comments', 
-                 'tenants_with_access', 'current_tenant']
+                 'tenants_with_access', 'current_tenant', 'accepts_in_app_payment',
+                 'accepts_cash_payment']
         depth = 1
 
     def create(self, validated_data):
@@ -174,6 +175,16 @@ class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = ['id', 'reviewer', 'reviewed', 'property', 'rating', 'comment', 'created_at']
+
+class RentPaymentSerializer(serializers.ModelSerializer):
+    tenant = CustomUserSerializer(read_only=True)
+    property = PropertySerializer(read_only=True)
+
+    class Meta:
+        model = RentPayment
+        fields = ['id', 'property', 'tenant', 'amount', 'due_date', 
+                 'payment_date', 'status', 'transaction_id', 'created_at']
+        read_only_fields = ['transaction_id', 'created_at']
 
 
 

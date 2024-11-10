@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from accounts.models import TenantProfile
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 def upload_to(instance, filename):
     return filename.format(filename=filename)
@@ -32,6 +33,8 @@ class Property(models.Model):
     current_tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='current_tenant')
     previous_tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties_with_access')
     previous_tenants = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties')
+    accepts_in_app_payment = models.BooleanField(default=False)
+    accepts_cash_payment = models.BooleanField(default=False)
     class Meta:
         indexes = [
             models.Index(fields=['owner']),
@@ -40,10 +43,6 @@ class Property(models.Model):
 
     def __str__(self):
         return self.title
-
-    # def clean(self):
-    #     if self.images.count() >= 10:
-    #         raise ValidationError("Cannot add more than 10 images to a property.")
 
     @property
     def tenant_comments(self):
@@ -143,112 +142,6 @@ class Review(models.Model):
 
     def __str__(self):
         return f"{self.reviewer.email} - {self.reviewed.email}"
-
-
-
-
-
-
-
-
-
-
-# class Site(models.Model):
-#     publisher = models.ForeignKey(PublisherProfile, on_delete=models.CASCADE)
-#     name = models.CharField(max_length=255)
-#     domain = models.CharField(max_length=255, unique=True)
-#     niche = models.ForeignKey('Niche', on_delete=models.CASCADE)
-#     domain_authority = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
-#     organic_traffic = models.PositiveIntegerField()
-#     price_per_link = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(0)])
-#     available_slots = models.PositiveIntegerField(blank=True, null=True)
-#     guidelines = models.TextField(blank=True, null=True)
-#     support_casino = models.BooleanField(default=False)
-#     support_sports_betting = models.BooleanField(default=False)
-#     support_loans = models.BooleanField(default=False)
-#     support_dating = models.BooleanField(default=False)
-#     support_forex = models.BooleanField(default=False)
-#     support_crypto = models.BooleanField(default=False)
-#     casino_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-#     sports_betting_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-#     loans_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-#     dating_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-#     forex_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-#     crypto_multiplier = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-
-
-#     class Meta:
-#         indexes = [
-#             models.Index(fields=['domain']),
-#             models.Index(fields=['niche']),
-#         ]
-
-#     def __str__(self):
-#         return self.domain
-    
-
-# class Niche(models.Model):
-#     name = models.CharField(max_length=255)
-
-#     def __str__(self):
-#         return self.name
-
-
-# class LinkRequest(models.Model):
-#     advertiser = models.ForeignKey(AdvertiserProfile, on_delete=models.CASCADE)
-#     publisher = models.ForeignKey(PublisherProfile, on_delete=models.CASCADE)
-#     site = models.ForeignKey(Site, on_delete=models.CASCADE)
-#     url = models.URLField()
-#     anchor_text = models.CharField(max_length=255)
-#     status = models.ForeignKey('LinkRequestStatus', on_delete=models.CASCADE, related_name='link_requests')
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     type = models.CharField(max_length=50)
-#     category = models.CharField(max_length=50)
-#     cost = models.DecimalField(max_digits=10, decimal_places=3)
-
-#     class Meta:
-#         indexes = [
-#             models.Index(fields=['status']),
-#             models.Index(fields=['created_at']),
-#         ]
-
-#     def __str__(self):
-#         return self.url
-
-# class LinkRequestStatus(models.Model):
-#     status = models.CharField(max_length=50,)
-#     timestamp = models.DateTimeField(auto_now_add=True)
-
-#     class Meta:
-#         ordering = ['-timestamp']
-#         indexes = [
-#             models.Index(fields=['timestamp']),
-#         ]
-
-
-# class Payment(models.Model):
-#     request = models.ForeignKey(LinkRequest, on_delete=models.CASCADE)
-#     amount = models.DecimalField(max_digits=10, decimal_places=2)
-#     stripe_payment_id = models.CharField(max_length=255)
-#     status = models.CharField(max_length=50)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-# class Rating(models.Model):
-#     advertiser = models.ForeignKey(AdvertiserProfile, on_delete=models.CASCADE)
-#     publisher = models.ForeignKey(PublisherProfile, on_delete=models.CASCADE)
-#     rating = models.IntegerField()
-#     comment = models.TextField()
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-# class Report(models.Model):
-#     advertiser = models.ForeignKey(AdvertiserProfile, on_delete=models.CASCADE)
-#     publisher = models.ForeignKey(PublisherProfile, on_delete=models.CASCADE)
-#     reason = models.TextField()
-#     status = models.CharField(max_length=50)
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     resolved_at = models.DateTimeField(null=True, blank=True)
-
 
 
 class Comment(models.Model):
@@ -361,6 +254,42 @@ class Comment(models.Model):
 #         from django.core.exceptions import ValidationError
 #         if not hasattr(self.tenant, 'tenantprofile'):
 #             raise ValidationError("Only tenants can make comments on properties.")
+
+
+
+
+
+class RentPayment(models.Model):
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+        ('OVERDUE', 'Overdue'),
+    ]
+
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='rent_payments')
+    tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rent_payments')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    due_date = models.DateField()
+    payment_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    transaction_id = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-due_date']
+        indexes = [
+            models.Index(fields=['property', 'tenant']),
+            models.Index(fields=['due_date']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"{self.property.title} - {self.tenant.email} - {self.due_date}"
+
+    def save(self, *args, **kwargs):
+        if self.status == 'PENDING' and self.due_date < timezone.now().date():
+            self.status = 'OVERDUE'
+        super().save(*args, **kwargs)
 
 
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment
 
 
 
@@ -49,36 +49,11 @@ class ReviewAdmin(admin.ModelAdmin):
     list_filter = ('rating', 'created_at')
     search_fields = ('reviewer__email', 'reviewed__email', 'property__title', 'comment')
 
-# If you want to customize the PropertyImage admin separately
 @admin.register(PropertyImage)
 class PropertyImageAdmin(admin.ModelAdmin):
     list_display = ('property', 'order')
     list_filter = ('property',)
     search_fields = ('property__title',)
-# from .models import Site, Niche, LinkRequest, LinkRequestStatus
-
-# @admin.register(Niche)
-# class NicheAdmin(admin.ModelAdmin):
-#     list_display = ('name',)
-#     search_fields = ('name',)
-
-# @admin.register(Site)
-# class SiteAdmin(admin.ModelAdmin):
-#     list_display = ('name', 'domain', 'niche', 'domain_authority', 'organic_traffic', 'price_per_link', 'available_slots')
-#     list_filter = ('niche', 'support_casino', 'support_sports_betting', 'support_loans', 'support_dating', 'support_forex', 'support_crypto')
-#     search_fields = ('name', 'domain')
-
-# @admin.register(LinkRequestStatus)
-# class LinkRequestStatusAdmin(admin.ModelAdmin):
-#     list_display = ('status', 'timestamp')
-#     search_fields = ('status',)
-
-# @admin.register(LinkRequest)
-# class LinkRequestAdmin(admin.ModelAdmin):
-#     list_display = ('url', 'anchor_text', 'advertiser', 'site', 'status', 'type', 'created_at')
-#     list_filter = ('status', 'type', 'created_at')
-#     search_fields = ('url', 'anchor_text')
-#     readonly_fields = ('created_at', 'updated_at')
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
@@ -86,3 +61,27 @@ class CommentAdmin(admin.ModelAdmin):
     list_filter = ('created_at', 'updated_at')
     search_fields = ('property__title', 'commenter__email', 'content')
     readonly_fields = ('created_at', 'updated_at')
+
+@admin.register(RentPayment)
+class RentPaymentAdmin(admin.ModelAdmin):
+    list_display = ('id','property', 'tenant', 'amount', 'due_date', 'payment_date', 'status', 'transaction_id')
+    list_filter = (
+        'status',
+        ('property', admin.RelatedOnlyFieldListFilter),
+        ('tenant', admin.RelatedOnlyFieldListFilter),
+        'due_date',
+        'payment_date',
+    )
+    search_fields = (
+        'property__title',
+        'tenant__email',
+        'tenant__first_name',
+        'tenant__last_name',
+        'transaction_id'
+    )
+    date_hierarchy = 'due_date'
+    ordering = ['-due_date']
+    readonly_fields = ['created_at']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('property', 'tenant')

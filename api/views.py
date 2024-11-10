@@ -13,12 +13,19 @@ from django.db.models import Q
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment
-from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment
+from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer, RentPaymentSerializer
 from accounts.models import TenantProfile
 from collections import defaultdict  # Add this import
 
 from accounts.serializers import CustomUserSerializer
+
+from django.utils import timezone
+
+import uuid
+import time
+
+from paynow import Paynow
 
 
 # Property views
@@ -497,3 +504,126 @@ class CommentDislikeView(APIView):
                 {'error': 'Comment not found'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+class RentPaymentListView(generics.ListCreateAPIView):
+    serializer_class = RentPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        if self.request.user.user_type == 'landlord':
+            return RentPayment.objects.filter(property__owner=self.request.user)
+        return RentPayment.objects.filter(tenant=self.request.user)
+
+    def perform_create(self, serializer):
+        property_id = self.request.data.get('property')
+        property_instance = Property.objects.get(id=property_id)
+        
+        if property_instance.current_tenant != self.request.user:
+            raise serializers.ValidationError("Only current tenant can create rent payments")
+        
+        serializer.save(
+            tenant=self.request.user,
+            property=property_instance,
+            amount=property_instance.price
+        )
+
+class PropertyRentPaymentsView(generics.ListAPIView):
+    serializer_class = RentPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        property_id = self.kwargs['property_id']
+        property = Property.objects.get(id=property_id)
+        
+        if not (self.request.user == property.owner or 
+                self.request.user == property.current_tenant):
+            return RentPayment.objects.none()
+        
+        return RentPayment.objects.filter(property_id=property_id)
+
+class ProcessRentPaymentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, payment_id):
+        try:
+            payment = RentPayment.objects.get(id=payment_id, tenant=request.user)
+            if payment.status != 'PENDING':
+                return Response(
+                    {"error": "Payment is not in pending status"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Get payment details from request
+            email = request.data.get('email')
+            phone = request.data.get('phone')
+            
+            if not email or not phone:
+                return Response({
+                    'error': 'Email and phone number are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Initialize Paynow
+            paynow = Paynow(
+                settings.PAYNOW_INTEGRATION_ID,
+                settings.PAYNOW_INTEGRATION_KEY,
+                settings.PAYNOW_RESULT_URL,
+                settings.PAYNOW_RETURN_URL
+            )
+
+            # Create payment reference
+            reference = f'Rent_{payment.id}_{uuid.uuid4()}'
+            paynow_payment = paynow.create_payment(reference, email)
+            paynow_payment.add('Rent Payment', float(payment.amount))
+
+            try:
+                response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
+                
+                if response.success:
+                    time.sleep(30)  # Wait for payment processing
+                    status_response = paynow.check_transaction_status(response.poll_url)
+                    
+                    if status_response.status == 'paid':
+                        # Update rent payment
+                        payment.status = 'PAID'
+                        payment.payment_date = timezone.now().date()
+                        payment.transaction_id = reference
+                        payment.save()
+
+                        # Create next month's payment
+                        next_due_date = payment.due_date + timezone.timedelta(days=30)
+                        RentPayment.objects.create(
+                            property=payment.property,
+                            tenant=payment.tenant,
+                            amount=payment.amount,
+                            due_date=next_due_date,
+                            status='PENDING'
+                        )
+
+                        return Response({
+                            "message": "Payment processed successfully and next month's payment created",
+                            "payment": RentPaymentSerializer(payment).data,
+                            "poll_url": response.poll_url,
+                            "reference": reference,
+                            "status": status_response.status
+                        })
+                    else:
+                        return Response({
+                            "error": "Payment not completed",
+                            "status": status_response.status
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    return Response({
+                        'error': response.data['error']
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            except Exception as e:
+                return Response({
+                    'error': str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except RentPayment.DoesNotExist:
+            return Response(
+                {'error': 'Payment not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
