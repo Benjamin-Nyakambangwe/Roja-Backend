@@ -145,3 +145,14 @@ ENV/
 .env.local
 .env.*.local
 
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+**/__pycache__/
+**/*.pyc
+core/__pycache__/
+
