@@ -23,14 +23,14 @@ class CustomProviderAuthView(ProviderAuthView):
             refresh_token = response.data.get('refresh')
 
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
                 )
             response.set_cookie(
                 'refresh',
                 refresh_token,
                 max_age=settings.AUTH_COOKIE_REFRESH_MAX_AGE,
-                path=settings.AUTH_COOKE_PATH, 
+                path=settings.AUTH_COOKIE_PATH, 
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
             )
         
@@ -49,14 +49,14 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             refresh_token = response.data.get('refresh')
 
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
                 )
             response.set_cookie(
                 'refresh',
                 refresh_token,
                 max_age=settings.AUTH_COOKIE_REFRESH_MAX_AGE,
-                path=settings.AUTH_COOKE_PATH, 
+                path=settings.AUTH_COOKIE_PATH, 
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
             )
         
@@ -76,7 +76,7 @@ class CustomTokenRefreshView(TokenRefreshView):
         if response.status_code == 200:
             access_token = response.data.get('access')
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
                 )
             
