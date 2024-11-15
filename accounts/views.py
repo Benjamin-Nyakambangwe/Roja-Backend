@@ -407,13 +407,25 @@ class AddTenantAccessView(APIView):
             tenant_profile.num_properties -= 1
             tenant_profile.save()
 
-            # Send email to landlord
+            # Send email to landlord with tenant profile link
             landlord_email = property.owner.email
             tenant_name = f"{request.user.first_name} {request.user.last_name}"
             property_title = property.title
+            tenant_profile_url = f"https://beta.ro-ja.com/tenant-profile/{request.user.id}"
 
-            subject = f"New Tenant Access for Property: {property_title}"
-            message = f"Dear Landlord,\n\nA new tenant, {tenant_name}, has been granted access to your property: {property_title}.\n\nBest regards,\nROJA ACCOMODATION Team"
+            subject = f"New Tenant Access Request for Property: {property_title}"
+            message = f"""Dear Landlord,
+
+A new tenant, {tenant_name}, has requested access to your property: {property_title}.
+
+To view the tenant's full profile and credentials, click here:
+{tenant_profile_url}
+
+You can review their profile and make an informed decision about their application.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+
             from_email = settings.EMAIL_HOST_USER
             recipient_list = [landlord_email]
 

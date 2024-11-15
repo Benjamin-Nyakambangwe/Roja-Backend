@@ -69,8 +69,9 @@ class PropertySerializer(serializers.ModelSerializer):
     images = PropertyImageSerializer(many=True, read_only=True)
     main_image = PropertyImageSerializer(read_only=True)
     image_files = serializers.ListField(
-        child=serializers.ImageField(max_length=1000000, allow_empty_file=False, use_url=False),
-        write_only=True
+        child=serializers.FileField(allow_empty_file=False),
+        write_only=True,
+        required=False
     )
     comments = CommentSerializer(many=True, read_only=True)
     type = serializers.PrimaryKeyRelatedField(queryset=HouseType.objects.all(), required=False, write_only=True)
@@ -90,7 +91,8 @@ class PropertySerializer(serializers.ModelSerializer):
         depth = 1
 
     def create(self, validated_data):
-        image_files = validated_data.pop('image_files')
+        # Remove image_files if present
+        validated_data.pop('image_files', None)
         type_id = validated_data.pop('type', None)
         location_id = validated_data.pop('location', None)
         
@@ -101,13 +103,6 @@ class PropertySerializer(serializers.ModelSerializer):
         if location_id:
             property.location = location_id
         property.save()
-
-        for index, image_file in enumerate(image_files):
-            PropertyImage.objects.create(property=property, image=image_file, order=index)
-
-        if image_files:
-            property.main_image = PropertyImage.objects.filter(property=property).first()
-            property.save()
             
         return property
 

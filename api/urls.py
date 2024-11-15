@@ -65,4 +65,10 @@ urlpatterns = [
     path('rent-payments/', views.RentPaymentListView.as_view(), name='rent-payment-list'),
     path('properties/<int:property_id>/rent-payments/', views.PropertyRentPaymentsView.as_view(), name='property-rent-payments'),
     path('rent-payments/<int:payment_id>/process/', views.ProcessRentPaymentView.as_view(), name='process-rent-payment'),
+
+    # Add this to your urlpatterns
+    path('tenant-accessible-properties/', views.TenantAccessibleProperties.as_view(), name='tenant-accessible-properties'),
+
+    # Add this to your urlpatterns
+    path('generate-property-description/', views.GeneratePropertyDescriptionView.as_view(), name='generate-property-description'),
 ]

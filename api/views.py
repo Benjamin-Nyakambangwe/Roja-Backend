@@ -27,6 +27,10 @@ import time
 
 from paynow import Paynow
 
+from .utils import add_watermark
+
+import openai
+
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -35,7 +39,32 @@ class PropertyList(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
+        # Get image files directly from request.FILES
+        image_files = self.request.FILES.getlist('image_files')
+        
+        if not image_files:
+            raise serializers.ValidationError({"image_files": "At least one image is required"})
+        
+        # Create property instance with owner
+        property_instance = serializer.save(owner=self.request.user)
+        
+        # Process each image
+        for index, image_file in enumerate(image_files):
+            # Add watermark to image
+            watermarked_image = add_watermark(image_file)
+            
+            # Create PropertyImage instance with watermarked image
+            PropertyImage.objects.create(
+                property=property_instance,
+                image=watermarked_image,
+                order=index
+            )
+        
+        # Set main image
+        property_instance.main_image = PropertyImage.objects.filter(
+            property=property_instance
+        ).first()
+        property_instance.save()
 
 class OwnPropertyList(generics.ListCreateAPIView):
     serializer_class = PropertySerializer
@@ -626,4 +655,105 @@ class ProcessRentPaymentView(APIView):
                 {'error': 'Payment not found'}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+class TenantAccessibleProperties(generics.ListAPIView):
+    serializer_class = PropertySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Return properties where:
+        1. The user is in tenants_with_access OR
+        2. The user is the current_tenant OR
+        # 3. The user is in previous_tenants_with_access
+        """
+        user = self.request.user
+        
+        if user.user_type != 'tenant':
+            return Property.objects.none()
+            
+        return Property.objects.filter(
+            Q(tenants_with_access=user) |
+            Q(current_tenant=user) 
+            # Q(previous_tenants_with_access=user)
+        ).distinct()
+
+class GeneratePropertyDescriptionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Get property details from form data
+            title = request.data.get('title', '')
+            bedrooms = request.data.get('bedrooms', '')
+            bathrooms = request.data.get('bathrooms', '')
+            area = request.data.get('area', '')
+            property_type = request.data.get('type', '')
+            location = request.data.get('location', '')
+            
+            # Convert string 'on' to boolean for checkboxes
+            accepts_pets = request.data.get('accepts_pets') == 'on'
+            pool = request.data.get('pool') == 'on'
+            garden = request.data.get('garden') == 'on'
+            
+            features = []
+            if accepts_pets:
+                features.append('Pet-friendly')
+            if pool:
+                features.append('Swimming pool')
+            if garden:
+                features.append('Garden')
+
+            # Get HouseType and HouseLocation names if IDs are provided
+            try:
+                if property_type:
+                    house_type = HouseType.objects.get(id=property_type)
+                    property_type = house_type.name
+                if location:
+                    house_location = HouseLocation.objects.get(id=location)
+                    location = f"{house_location.name}, {house_location.city}" if house_location.city else house_location.name
+            except (HouseType.DoesNotExist, HouseLocation.DoesNotExist):
+                pass
+
+            # Construct the prompt
+            prompt = f"""Please provide a detailed property description to attract potential tenants by highlighting key aspects using the given description below:
+
+Property Details:
+- Title: {title}
+- Type: {property_type}
+- Location: {location}
+- Bedrooms: {bedrooms}
+- Bathrooms: {bathrooms}
+- Area: {area} square feet
+- Features: {', '.join(features)}
+
+Start by describing the property type and include specifics like the number of bedrooms, bathrooms, and area. Next, emphasize unique features that set this property apart. Finally, include details about any additional amenities."""
+
+            # Configure OpenAI client
+            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+
+            # Make API call using new format
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a professional real estate copywriter."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+
+            # Extract the generated description
+            description = response.choices[0].message.content.strip()
+
+            return Response({
+                'description': description
+            })
+
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
