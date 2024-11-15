@@ -691,6 +691,9 @@ class GeneratePropertyDescriptionView(APIView):
             property_type = request.data.get('type', '')
             location = request.data.get('location', '')
             
+            # Log incoming data
+            print(f"Received data: {request.data}")
+            
             # Convert string 'on' to boolean for checkboxes
             accepts_pets = request.data.get('accepts_pets') == 'on'
             pool = request.data.get('pool') == 'on'
@@ -712,8 +715,23 @@ class GeneratePropertyDescriptionView(APIView):
                 if location:
                     house_location = HouseLocation.objects.get(id=location)
                     location = f"{house_location.name}, {house_location.city}" if house_location.city else house_location.name
-            except (HouseType.DoesNotExist, HouseLocation.DoesNotExist):
-                pass
+            except HouseType.DoesNotExist:
+                print(f"HouseType with ID {property_type} not found")
+                return Response({"error": f"House type with ID {property_type} not found"}, status=status.HTTP_404_NOT_FOUND)
+            except HouseLocation.DoesNotExist:
+                print(f"HouseLocation with ID {location} not found")
+                return Response({"error": f"Location with ID {location} not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Log processed data
+            print(f"Processed data - Type: {property_type}, Location: {location}, Features: {features}")
+
+            # Check if OpenAI API key is configured
+            if not settings.OPENAI_API_KEY:
+                print("OpenAI API key not configured")
+                return Response(
+                    {"error": "OpenAI API key not configured"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             # Construct the prompt
             prompt = f"""Please provide a detailed property description to attract potential tenants by highlighting key aspects using the given description below:
@@ -729,31 +747,60 @@ Property Details:
 
 Start by describing the property type and include specifics like the number of bedrooms, bathrooms, and area. Next, emphasize unique features that set this property apart. Finally, include details about any additional amenities."""
 
-            # Configure OpenAI client
-            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+            print("Making OpenAI API call...")
+            try:
+                # Configure OpenAI client
+                client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
 
-            # Make API call using new format
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a professional real estate copywriter."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=500,
-                temperature=0.7
-            )
+                # Make API call using new format
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a professional real estate copywriter."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    max_tokens=500,
+                    temperature=0.7
+                )
 
-            # Extract the generated description
-            description = response.choices[0].message.content.strip()
+                # Extract the generated description
+                description = response.choices[0].message.content.strip()
+                print("Successfully generated description")
 
-            return Response({
-                'description': description
-            })
+                return Response({
+                    'description': description
+                })
+
+            except openai.APIError as e:
+                print(f"OpenAI API Error: {str(e)}")
+                return Response(
+                    {"error": f"OpenAI API Error: {str(e)}"}, 
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
+            except openai.RateLimitError as e:
+                print(f"Rate limit exceeded: {str(e)}")
+                return Response(
+                    {"error": "Rate limit exceeded. Please try again later."}, 
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            except openai.AuthenticationError as e:
+                print(f"Authentication error: {str(e)}")
+                return Response(
+                    {"error": "Invalid API key"}, 
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
 
         except Exception as e:
-            return Response({
-                'error': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"Unexpected error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {
+                    "error": "An unexpected error occurred",
+                    "details": str(e)
+                }, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 
