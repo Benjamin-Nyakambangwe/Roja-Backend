@@ -35,6 +35,9 @@ class Property(models.Model):
     previous_tenants = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties')
     accepts_in_app_payment = models.BooleanField(default=False)
     accepts_cash_payment = models.BooleanField(default=False)
+    proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
+    affidavit = models.FileField(upload_to=upload_to, null=True, blank=True)
+
     class Meta:
         indexes = [
             models.Index(fields=['owner']),
@@ -292,5 +295,14 @@ class RentPayment(models.Model):
         super().save(*args, **kwargs)
 
 
+class PhoneVerification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    verification_code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)
+
+    def is_expired(self):
+        expiration_time = self.created_at + timezone.timedelta(minutes=5)
+        return timezone.now() > expiration_time
 
 

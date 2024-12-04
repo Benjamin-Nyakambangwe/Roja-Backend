@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment, PhoneVerification
 from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer, RentPaymentSerializer
 from accounts.models import TenantProfile
 from collections import defaultdict  # Add this import
@@ -30,6 +30,10 @@ from paynow import Paynow
 from .utils import add_watermark
 
 import openai
+
+from twilio.rest import Client
+
+import random
 
 
 # Property views
@@ -91,7 +95,7 @@ class PropertyListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Property.objects.filter(current_tenant__isnull=True)
+        return Property.objects.filter(current_tenant__isnull=True).order_by('-id')
 
     def filter_queryset(self, queryset):
         for backend in list(self.filter_backends):
@@ -104,7 +108,7 @@ class PropertyListCreateView(APIView):
         show_all = request.query_params.get('show_all', 'false').lower() == 'true'
         
         if show_all:
-            queryset = Property.objects.all()
+            queryset = Property.objects.all().order_by('-id')
         
         filtered_queryset = self.filter_queryset(queryset)
         serializer = PropertySerializer(filtered_queryset, many=True, context={'request': request})
@@ -678,6 +682,23 @@ class TenantAccessibleProperties(generics.ListAPIView):
             # Q(previous_tenants_with_access=user)
         ).distinct()
 
+class TenantCurrentProperty(generics.ListAPIView):
+    serializer_class = PropertySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        """
+        Return the current property of the tenant
+        """
+        user = self.request.user
+        
+        if user.user_type != 'tenant':
+            return Property.objects.none()
+            
+        return Property.objects.filter(
+            current_tenant=user
+        ).distinct()
+
 class GeneratePropertyDescriptionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -801,6 +822,170 @@ Start by describing the property type and include specifics like the number of b
                 }, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class SendSMSView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            phone_number = request.data.get('phone_number')
+            message = request.data.get('message')
+
+            if not phone_number or not message:
+                return Response({
+                    'error': 'Phone number and message are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Initialize Twilio client
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+            # Send message
+            message = client.messages.create(
+                body=message,
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=phone_number
+            )
+
+            return Response({
+                'success': True,
+                'message_sid': message.sid
+            })
+
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
+
+
+
+
+
+
+
+        
+
+class SendVerificationCodeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def generate_code(self):
+        return ''.join(random.choices('0123456789', k=6))
+
+    def post(self, request):
+        try:
+            # Get phone number based on user type
+            if request.user.user_type == 'landlord':
+                try:
+                    profile = request.user.landlord_profile  # Changed from landlordprofile
+                except:
+                    return Response({
+                        'error': 'Landlord profile not found'
+                    }, status=status.HTTP_404_NOT_FOUND)
+            else:
+                try:
+                    profile = request.user.tenant_profile  # Changed from tenantprofile
+                except:
+                    return Response({
+                        'error': 'Tenant profile not found'
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            if not profile.phone:
+                return Response({
+                    'error': 'No phone number found in profile'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate verification code
+            verification_code = self.generate_code()
+
+            # Save verification code
+            PhoneVerification.objects.create(
+                user=request.user,
+                verification_code=verification_code
+            )
+
+            # Initialize Twilio client
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+            # Send verification code
+            message = client.messages.create(
+                body=f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes.",
+                from_=settings.TWILIO_PHONE_NUMBER,
+                to=profile.phone
+            )
+
+            return Response({
+                'success': True,
+                'message': 'Verification code sent successfully'
+            })
+
+        except Exception as e:
+            print(f"Error sending verification code: {str(e)}")
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class VerifyPhoneCodeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            verification_code = request.data.get('code')
+
+            if not verification_code:
+                return Response({
+                    'error': 'Verification code is required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Get latest verification code for this user
+            verification = PhoneVerification.objects.filter(
+                user=request.user,
+                is_verified=False
+            ).order_by('-created_at').first()
+
+            if not verification:
+                return Response({
+                    'error': 'No pending verification found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            if verification.is_expired():
+                return Response({
+                    'error': 'Verification code has expired'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            if verification.verification_code != verification_code:
+                return Response({
+                    'error': 'Invalid verification code'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Mark as verified
+            verification.is_verified = True
+            verification.save()
+
+            # Update user's profile
+            if request.user.user_type == 'landlord':
+                profile = request.user.landlord_profile
+            else:
+                profile = request.user.tenant_profile
+
+            profile.is_phone_verified = True
+            profile.save()
+
+            print(profile.is_phone_verified)
+
+            return Response({
+                'success': True,
+                'message': 'Phone number verified successfully'
+            })
+
+        except Exception as e:
+            print(f"Error verifying code: {str(e)}")
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

@@ -23,7 +23,7 @@ def add_watermark(image_file):
         
         # Calculate watermark size while maintaining aspect ratio
         watermark_ratio = watermark.width / watermark.height
-        desired_width = int(image.width * 0.4)  # 20% of main image width
+        desired_width = int(image.width * 0.2)  # 20% of main image width
         new_height = int(desired_width / watermark_ratio)
         
         # Resize watermark maintaining aspect ratio

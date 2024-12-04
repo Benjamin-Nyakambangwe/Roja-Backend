@@ -86,6 +86,7 @@ class LandlordProfile(models.Model):
     id_number = models.CharField(max_length=100, blank=True, null=True)
     proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
     marital_status = models.CharField(max_length=100, blank=True, null=True)
+    is_phone_verified = models.BooleanField(default=False, blank=True, null=True)
 
     def __str__(self):
         return f"Landlord Profile: {self.user.email}"
@@ -126,6 +127,12 @@ class TenantProfile(models.Model):
     personal_reference_2_name = models.CharField(max_length=100, blank=True, null=True)
     personal_reference_2_phone = models.CharField(max_length=15, blank=True, null=True)
     personal_reference_2_relation = models.CharField(max_length=50,blank=True, null=True)
+
+    next_of_kin_name = models.CharField(max_length=100, blank=True, null=True)
+    next_of_kin_phone = models.CharField(max_length=15, blank=True, null=True)
+    next_of_kin_email = models.EmailField(blank=True, null=True)
+    next_of_kin_relation = models.CharField(max_length=50, blank=True, null=True)
+    next_of_kin_address = models.TextField(blank=True, null=True)
     # Additional Notes
     additional_notes = models.TextField(blank=True, null=True)
     id_image = models.FileField(upload_to=upload_to, null=True, blank=True)
@@ -133,6 +140,8 @@ class TenantProfile(models.Model):
     id_number = models.CharField(max_length=100, blank=True, null=True)
     proof_of_employment = models.FileField(upload_to=upload_to, null=True, blank=True)
     marital_status = models.CharField(max_length=100, blank=True, null=True)
+    is_phone_verified = models.BooleanField(default=False, blank=True, null=True)
+
     # Profile Status
     is_profile_complete = models.BooleanField(default=False, blank=True, null=True)
     last_updated = models.DateTimeField(auto_now=True)

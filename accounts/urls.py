@@ -3,7 +3,7 @@ from .views import CustomProviderAuthView, CustomTokenObtainPairView, CustomToke
 from .views import LandlordProfileView, TenantProfileView, LandlordProfileListView, TenantProfileListView, InitiatePaymentView, PaymentResultView, PaymentStatusView
 from .views import TenantProfileLimitedView, LandlordProfileLimitedView, getTenantProfileView
 from .views import AddTenantAccessView
-from .views import SetCurrentTenantView, RevokeCurrentTenantView
+from .views import SetCurrentTenantView, RevokeCurrentTenantView, SetCurrentTenantWithLeaseDocView
 
 urlpatterns = [
     re_path(
@@ -31,6 +31,7 @@ urlpatterns = [
 
     path('custom-tenant-profile/<int:pk>/', getTenantProfileView.as_view(), name='get-tenant-profile'),
     path('set-current-tenant/<int:property_id>/', SetCurrentTenantView.as_view(), name='set-current-tenant'),
+    path('set-current-tenant-with-lease-doc/<int:property_id>/', SetCurrentTenantWithLeaseDocView.as_view(), name='set-current-tenant-with-lease-doc'),
     path('revoke-current-tenant/<int:property_id>/', RevokeCurrentTenantView.as_view(), name='revoke-current-tenant'),
 ]
 

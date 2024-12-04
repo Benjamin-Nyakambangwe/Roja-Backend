@@ -64,7 +64,7 @@ class CommentAdmin(admin.ModelAdmin):
 
 @admin.register(RentPayment)
 class RentPaymentAdmin(admin.ModelAdmin):
-    list_display = ('id','property', 'tenant', 'amount', 'due_date', 'payment_date', 'status', 'transaction_id')
+    list_display = ('property', 'tenant', 'amount', 'due_date', 'payment_date', 'status', 'transaction_id')
     list_filter = (
         'status',
         ('property', admin.RelatedOnlyFieldListFilter),

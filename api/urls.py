@@ -68,7 +68,14 @@ urlpatterns = [
 
     # Add this to your urlpatterns
     path('tenant-accessible-properties/', views.TenantAccessibleProperties.as_view(), name='tenant-accessible-properties'),
+    path('tenant-current-property/', views.TenantCurrentProperty.as_view(), name='tenant-current-property'),
 
     # Add this to your urlpatterns
     path('generate-property-description/', views.GeneratePropertyDescriptionView.as_view(), name='generate-property-description'),
+
+    # Add this to your urlpatterns
+    path('send-sms/', views.SendSMSView.as_view(), name='send-sms'),
+
+    path('send-verification-code/', views.SendVerificationCodeView.as_view(), name='send-verification-code'),
+    path('verify-phone-code/', views.VerifyPhoneCodeView.as_view(), name='verify-phone-code'),
 ]

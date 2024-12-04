@@ -9,7 +9,10 @@ User = get_user_model()
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        print("Connection attempt received")
+        print("Scope:", self.scope)
         self.room_name = self.scope['url_route']['kwargs']['room_name']
+        print(f"Room name: {self.room_name}")
         self.room_group_name = f'chat_{self.room_name}'
 
         await self.channel_layer.group_add(

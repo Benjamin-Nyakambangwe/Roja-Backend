@@ -115,25 +115,25 @@ DATABASES = {
 }
 
 #EMAIL
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'benjaminnyakambangwe@gmail.com'
-# EMAIL_HOST_PASSWORD = 'oqjezmvwhpizbpei'
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'benjaminnyakambangwe@gmail.com'
+EMAIL_HOST_PASSWORD = 'oqjezmvwhpizbpei'
 
 
 # Zoho Mail Settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.zoho.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'no-reply@ro-ja.com'
-EMAIL_HOST_PASSWORD = 'No-reply@roja1'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.zoho.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'no-reply@ro-ja.com'
+# EMAIL_HOST_PASSWORD = 'No-reply@roja1'
 
-# Required additional settings to prevent relay errors
-DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
-SERVER_EMAIL = 'no-reply@ro-ja.com'
+# # Required additional settings to prevent relay errors
+# DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
+# SERVER_EMAIL = 'no-reply@ro-ja.com'
 
 
 #AUTH
@@ -283,9 +283,9 @@ SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
 
 PAYNOW_INTEGRATION_ID = '19317'
 PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
-PAYNOW_RESULT_URL = 'httplocalhost8000authresult'
+PAYNOW_RESULT_URL = 'http://localhost:8000/auth/result'
 # PAYNOW_RETURN_URL = 'httplocalhost3000payment-success'
-PAYNOW_RETURN_URL = 'httpsbeta.ro-ja.compayment-success'
+PAYNOW_RETURN_URL = 'https://beta.ro-ja.com/payment-success'
 
 # Add Channels configuration
 ASGI_APPLICATION = 'core.asgi.application'
@@ -298,3 +298,8 @@ CHANNEL_LAYERS =  {
 
 # OpenAI Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
+# Twilio Configuration
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER') 

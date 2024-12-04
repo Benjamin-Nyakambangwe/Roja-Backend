@@ -13,6 +13,20 @@ from .models import LandlordProfile, TenantProfile, PricingTier
 from .serializers import LandlordProfileSerializer, TenantProfileSerializer
 from api.models import RentPayment
 from django.utils import timezone
+from django.template.loader import render_to_string
+from io import BytesIO
+import os
+from datetime import datetime
+from django.shortcuts import get_object_or_404
+from django.core.mail import send_mail, EmailMessage
+from api.models import Property, RentPayment, LeaseAgreement
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from bs4 import BeautifulSoup
 
 class CustomProviderAuthView(ProviderAuthView):
     def post(self, request, *args, **kwargs):
@@ -553,7 +567,7 @@ class SetCurrentTenantView(APIView):
         property = get_object_or_404(Property, id=property_id, owner=request.user)
         tenant_id = request.data.get('tenant_id')
         
-        if not tenant_id:
+        if not tenant_id: 
             return Response({"error": "Tenant ID is required."}, status=drf_status.HTTP_400_BAD_REQUEST)
         
         try:
@@ -657,3 +671,236 @@ class RevokeCurrentTenantView(APIView):
 
         return Response({"message": f"Current tenant revoked for property {property.title}."}, status=drf_status.HTTP_200_OK)
 
+
+
+
+
+
+
+class SetCurrentTenantWithLeaseDocView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def generate_lease_agreement(self, property, tenant, landlord, start_date):
+        """Generate lease agreement PDF using template"""
+        # Calculate end date (30 days from start)
+        end_date = start_date + timezone.timedelta(days=30)
+        
+        # Prepare context for template
+        context = {
+            'generated_date': datetime.now().strftime('%d %B, %Y'),
+            'landlord': landlord,
+            'tenant': tenant,
+            'property': property,
+            'start_date': start_date.strftime('%d %B, %Y'),
+            'end_date': end_date.strftime('%d %B, %Y'),
+            'rent_amount': property.price,
+            'deposit_amount': property.deposit,
+            'payment_method': 'in-app payment' if property.accepts_in_app_payment else 'cash payment'
+        }
+        
+        # Render HTML template
+        html_string = render_to_string('lease_agreement.html', context)
+        
+        # Create PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=A4,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        # Get styles
+        styles = getSampleStyleSheet()
+        elements = []
+        
+        # Clean and process HTML content
+        soup = BeautifulSoup(html_string, 'html.parser')
+        text_content = soup.get_text(separator='\n', strip=True)
+        
+        # Process each paragraph
+        for paragraph in text_content.split('\n'):
+            if paragraph.strip():
+                try:
+                    p = Paragraph(paragraph.strip(), styles['Normal'])
+                    elements.append(p)
+                    elements.append(Spacer(1, 12))
+                except Exception as e:
+                    print(f"Error processing paragraph: {str(e)}")
+                    continue
+        
+        # Build PDF
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
+
+    def post(self, request, property_id):
+        print("Received request data:", request.data)
+        print("Property ID:", property_id)
+        print("User type:", request.user.user_type)
+        print("User:", request.user.email)
+        
+        if request.user.user_type != 'landlord':
+            return Response({"error": "Only landlords can set current tenants."}, 
+                          status=drf_status.HTTP_403_FORBIDDEN)
+        
+        try:
+            property = get_object_or_404(Property, id=property_id, owner=request.user)
+            print("Found property:", property.title)
+        except:
+            return Response({"error": "Property not found or not owned by user"}, 
+                          status=drf_status.HTTP_404_NOT_FOUND)
+        
+        tenant_id = request.data.get('tenant_id')
+        print("Tenant ID:", tenant_id)
+        
+        if not tenant_id:
+            return Response({"error": "Tenant ID is required."}, 
+                          status=drf_status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
+            tenant_user = tenant_profile.user
+            print("Found tenant:", tenant_user.email)
+            print("Next of kin email:", tenant_profile.next_of_kin_email)
+            
+            # Store if tenant has next of kin email
+            has_next_of_kin = tenant_profile.next_of_kin_email is not None
+                
+        except TenantProfile.DoesNotExist:
+            return Response({"error": "Tenant profile not found."}, 
+                          status=drf_status.HTTP_404_NOT_FOUND)
+        
+        # Store previous tenants
+        previous_tenants = list(property.tenants_with_access.all())
+
+        # Set dates
+        start_date = timezone.now().date()
+        end_date = start_date + timezone.timedelta(days=30)
+        
+        # Generate lease agreement
+        lease_pdf = self.generate_lease_agreement(
+            property=property,
+            tenant=tenant_user,
+            landlord=request.user,
+            start_date=start_date
+        )
+        
+        # Create lease agreement record
+        lease_agreement = LeaseAgreement.objects.create(
+            tenant=tenant_user,
+            property=property,
+            start_date=start_date,
+            end_date=end_date,
+            rent_amount=property.price
+        )
+        
+        # Update property tenants
+        property.current_tenant = tenant_user
+        property.tenants_with_access.clear()
+        property.previous_tenants_with_access.add(*previous_tenants)
+        property.tenants_with_access.add(tenant_user)
+        
+        # Create rent payment if applicable
+        if property.accepts_in_app_payment:
+            RentPayment.objects.create(
+                property=property,
+                tenant=tenant_user,
+                amount=property.price,
+                due_date=end_date,
+                status='PENDING'
+            )
+        
+        property.save()
+
+        # Send notifications with lease agreement
+        self.send_email_to_winning_tenant(tenant_user, property, lease_pdf)
+        self.send_email_to_landlord(request.user, tenant_user, property, lease_pdf)
+        if has_next_of_kin:  # Only send to next of kin if email exists
+            self.send_email_to_tenant_kin(tenant_profile.next_of_kin_email, tenant_user, property, lease_pdf)
+        self.send_emails_to_other_tenants(previous_tenants, tenant_user, property)
+        
+        return Response({
+            "message": f"Current tenant set for property {property.title}. Lease agreement sent to all parties.",
+            "property_id": property.id,
+            "tenant_id": tenant_user.id,
+            "tenant_name": f"{tenant_user.first_name} {tenant_user.last_name}",
+            "lease_start_date": start_date,
+            "lease_end_date": end_date,
+            "rent_payment_created": property.accepts_in_app_payment
+        })
+
+    def send_email_to_winning_tenant(self, tenant, property, lease_pdf):
+        subject = f"Congratulations! You've been selected for {property.title}"
+        message = f"""Dear {tenant.first_name},
+
+Congratulations! You have been selected as the tenant for the property: {property.title}.
+
+Please find attached the lease agreement for your review and records.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+        self.send_email_with_attachment(subject, message, [tenant.email], lease_pdf, "lease_agreement.pdf")
+
+    def send_email_to_landlord(self, landlord, tenant, property, lease_pdf):
+        subject = f"Tenant Selected for {property.title}"
+        message = f"""Dear {landlord.first_name},
+
+This is to confirm that you have selected {tenant.first_name} {tenant.last_name} as the tenant for your property: {property.title}.
+
+Please find attached the lease agreement for your records.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+        self.send_email_with_attachment(subject, message, [landlord.email], lease_pdf, "lease_agreement.pdf")
+
+    def send_email_to_tenant_kin(self, kin_email, tenant, property, lease_pdf):
+        subject = f"Lease Agreement Witness - {property.title}"
+        message = f"""Dear Sir/Madam,
+
+You have been listed as a witness for the lease agreement between {tenant.first_name} {tenant.last_name} and ROJA ACCOMODATION for the property: {property.title}.
+
+Please find attached the lease agreement for your review and records.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+        self.send_email_with_attachment(subject, message, [kin_email], lease_pdf, "lease_agreement.pdf")
+
+    def send_emails_to_other_tenants(self, previous_tenants, winning_tenant, property):
+        for tenant in previous_tenants:
+            if tenant != winning_tenant:
+                subject = f"Update on {property.title}"
+                message = f"""Dear {tenant.first_name},
+
+We regret to inform you that you were not selected for the property: {property.title}. We appreciate your interest and encourage you to explore other available properties.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+                self.send_email(subject, message, [tenant.email])
+
+    def send_email(self, subject, message, recipient_list):
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER,
+                recipient_list,
+                fail_silently=False,
+            )
+        except Exception as e:
+            print(f"Failed to send email. Error: {str(e)}")
+
+    def send_email_with_attachment(self, subject, message, recipient_list, pdf_file, filename):
+        try:
+            email = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.EMAIL_HOST_USER,
+                to=recipient_list
+            )
+            email.attach(filename, pdf_file.getvalue(), 'application/pdf')
+            email.send(fail_silently=False)
+        except Exception as e:
+            print(f"Failed to send email with attachment. Error: {str(e)}")

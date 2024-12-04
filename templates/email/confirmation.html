@@ -27,7 +27,7 @@
         box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
       }
       .header {
-        background-color: #3498db;
+        background-color: #344e41;
         color: #ffffff;
         padding: 20px;
         text-align: center;
@@ -36,15 +36,15 @@
         padding: 30px;
       }
       h1 {
-        color: #2c3e50;
+        color: #ffffff;
         margin-top: 0;
         font-weight: 700;
       }
       .button {
         display: inline-block;
         padding: 12px 24px;
-        background-color: #3498db;
-        color: #ffffff;
+        background-color: #344e41;
+        color: #ffffff !important;
         text-decoration: none;
         border-radius: 5px;
         font-weight: 700;
@@ -52,13 +52,13 @@
         transition: background-color 0.3s ease;
       }
       .button:hover {
-        background-color: #2980b9;
+        background-color: #2a3f35;
       }
       .footer {
-        background-color: #34495e;
-        color: #ffffff;
+        background-color: #ecf0f1;
+        color: #344e41;
         text-align: center;
-        padding: 10px;
+        padding: 20px;
         font-size: 0.9em;
       }
     </style>
@@ -66,7 +66,12 @@
   <body>
     <div class="container">
       <div class="header">
-        <h1>Welcome to <br />{{ site_name }}!</h1>
+        <img
+          src="https://api.ro-ja.com/media/logo/roja-white.svg"
+          alt="Roja Logo"
+          style="display: block; margin: 0 auto; max-width: 200px; height: auto"
+        />
+        <h1>Welcome to<br />{{ site_name }}!</h1>
       </div>
       <div class="content">
         <p>
@@ -79,13 +84,27 @@
           Go to {{ site_name }}
         </a>
         <p>
-          If you have any questions or need assistance, please don't hesitate to
-          contact our support team.
+          If you have any questions or need assistance, our dedicated support
+          team is here to help. Simply contact us at support@ro-ja.com.
         </p>
+        <p>Happy house hunting!</p>
       </div>
       <div class="footer">
-        <p>Thanks for choosing {{ site_name }}!</p>
+        <p>Thanks for using our site!</p>
         <p>The {{ site_name }} Team</p>
+        <p>
+          <a
+            href="https://beta.ro-ja.com/privacy-policy"
+            style="color: #344e41; text-decoration: underline"
+            >Privacy Policy</a
+          >
+          |
+          <a
+            href="https://beta.ro-ja.com/terms-of-service"
+            style="color: #344e41; text-decoration: underline"
+            >Terms of Service</a
+          >
+        </p>
       </div>
     </div>
   </body>

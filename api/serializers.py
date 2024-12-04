@@ -87,7 +87,7 @@ class PropertySerializer(serializers.ModelSerializer):
                  'garden', 'type', 'location', 'type_detail', 'location_detail', 
                  'main_image', 'images', 'image_files', 'comments', 
                  'tenants_with_access', 'current_tenant', 'accepts_in_app_payment',
-                 'accepts_cash_payment']
+                 'accepts_cash_payment', 'proof_of_residence', 'affidavit']
         depth = 1
 
     def create(self, validated_data):
