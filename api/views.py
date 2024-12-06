@@ -35,6 +35,9 @@ from twilio.rest import Client
 
 import random
 
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -70,6 +73,43 @@ class PropertyList(generics.ListCreateAPIView):
         ).first()
         property_instance.save()
 
+        # Send approval email
+        try:
+            # Get the domain
+            domain = 'https://api.ro-ja.com'
+
+            # Update URLs to match the actual endpoints
+            approve_url = f"{domain}/api/properties/{property_instance.id}/approve/"
+            disapprove_url = f"{domain}/api/properties/{property_instance.id}/disapprove/"
+
+            # Prepare email context with full image URLs
+            context = {
+                'property': property_instance,
+                'approve_url': approve_url,
+                'disapprove_url': disapprove_url,
+                'site_name': 'ROJA ACCOMODATION',
+                'domain': domain
+            }
+
+            # Render email template
+            html_message = render_to_string('email/property_approval.html', context)
+            
+            # Send email
+            send_mail(
+                subject=f'New Property Approval Required: {property_instance.title}',
+                message='Please approve or disapprove the new property listing.',
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[settings.SUPPORT_EMAIL],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            print(f"Property approval email sent successfully for: {property_instance.title}")
+
+        except Exception as e:
+            print(f"Failed to send property approval email: {str(e)}")
+            # Don't raise error, just log it
+            # Property creation was successful even if email fails
+
 class OwnPropertyList(generics.ListCreateAPIView):
     serializer_class = PropertySerializer
     permission_classes = [permissions.IsAuthenticated]  # Changed to IsAuthenticated
@@ -95,7 +135,7 @@ class PropertyListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Property.objects.filter(current_tenant__isnull=True).order_by('-id')
+        return Property.objects.filter(current_tenant__isnull=True, is_approved=True).order_by('-id')
 
     def filter_queryset(self, queryset):
         for backend in list(self.filter_backends):
@@ -986,6 +1026,152 @@ class VerifyPhoneCodeView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CommentReplyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, comment_id):
+        try:
+            # Get the parent comment
+            parent_comment = Comment.objects.get(id=comment_id)
+            
+            # Don't allow replies to replies
+            if parent_comment.is_reply:
+                return Response(
+                    {"error": "Cannot reply to a reply"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Get content from request
+            content = request.data.get('content')
+            if not content:
+                return Response(
+                    {"error": "Content is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the reply
+            reply = Comment.objects.create(
+                property=parent_comment.property,
+                commenter=request.user,
+                content=content,
+                parent=parent_comment,
+                is_reply=True,
+                is_owner=parent_comment.property.owner == request.user
+            )
+
+            # Serialize and return the reply
+            serializer = CommentSerializer(reply, context={'request': request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Comment.DoesNotExist:
+            return Response(
+                {"error": "Comment not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class ApprovePropertyView(APIView):
+    permission_classes = [permissions.AllowAny]  # Allow any user to access
+
+    def post(self, request, property_id):
+        try:
+            # Get property
+            property = Property.objects.get(id=property_id)
+            
+            # Update property status
+            property.is_approved = True
+            property.save()
+
+            # Send notification to property owner
+            subject = f'Your Property Has Been Approved: {property.title}'
+            message = f"""Dear {property.owner.first_name},
+
+Your property listing "{property.title}" has been approved and is now visible on our platform.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[property.owner.email],
+                fail_silently=False,
+            )
+
+            return Response({
+                "message": f"Property {property.title} has been approved",
+                "property_id": property.id
+            })
+
+        except Property.DoesNotExist:
+            return Response(
+                {"error": "Property not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class DisapprovePropertyView(APIView):
+    permission_classes = [permissions.AllowAny]  # Allow any user to access
+
+    def post(self, request, property_id):
+        try:
+            # Get property
+            property = Property.objects.get(id=property_id)
+            
+            # Get reason for disapproval
+            reason = request.data.get('reason', 'No reason provided')
+            
+            # Update property status
+            property.is_approved = False
+            property.save()
+
+            # Send notification to property owner
+            subject = f'Your Property Was Not Approved: {property.title}'
+            message = f"""Dear {property.owner.first_name},
+
+Your property listing "{property.title}" was not approved for the following reason:
+
+{reason}
+
+Please make the necessary adjustments and submit again.
+
+Best regards,
+ROJA ACCOMODATION Team"""
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[property.owner.email],
+                fail_silently=False,
+            )
+
+            return Response({
+                "message": f"Property {property.title} has been disapproved",
+                "property_id": property.id,
+                "reason": reason
+            })
+
+        except Property.DoesNotExist:
+            return Response(
+                {"error": "Property not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 

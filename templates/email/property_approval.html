@@ -1,0 +1,214 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Property Approval Required</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Raleway", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #344e41;
+        color: #ffffff;
+        padding: 20px;
+        text-align: center;
+      }
+      .content {
+        padding: 30px;
+      }
+      h1 {
+        color: #ffffff;
+        margin-top: 0;
+        font-weight: 700;
+      }
+      .property-details {
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: 700;
+        margin: 10px;
+      }
+      .approve {
+        background-color: #28a745;
+        color: #ffffff !important;
+      }
+      .disapprove {
+        background-color: #dc3545;
+        color: #ffffff !important;
+      }
+      .footer {
+        background-color: #ecf0f1;
+        color: #344e41;
+        text-align: center;
+        padding: 20px;
+        font-size: 0.9em;
+      }
+      .image-section {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+      }
+      .image-section h5 {
+        margin: 0 0 10px 0;
+        color: #344e41;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img
+          src="https://api.ro-ja.com/media/logo/roja-white.svg"
+          alt="Roja Logo"
+          style="display: block; margin: 0 auto; max-width: 200px; height: auto"
+        />
+        <h1>New Property Approval Required</h1>
+      </div>
+      <div class="content">
+        <p>A new property has been added and requires your approval:</p>
+
+        <div class="property-details">
+          <h3>{{ property.title }}</h3>
+
+          <h4>Basic Information:</h4>
+          <p><strong>Owner:</strong> {{ property.owner.first_name }}</p>
+          <p><strong>Description:</strong> {{ property.description }}</p>
+          <p><strong>Address:</strong> {{ property.address }}</p>
+          <p><strong>Type:</strong> {{ property.type.name }}</p>
+          <p><strong>Location:</strong> {{ property.location.name }}</p>
+
+          <h4>Financial Details:</h4>
+          <p><strong>Price:</strong> ${{ property.price }}</p>
+          <p><strong>Deposit:</strong> ${{ property.deposit }}</p>
+          <p><strong>Pet Deposit:</strong> ${{ property.pet_deposit }}</p>
+
+          <h4>Property Specifications:</h4>
+          <p><strong>Bedrooms:</strong> {{ property.bedrooms }}</p>
+          <p><strong>Bathrooms:</strong> {{ property.bathrooms }}</p>
+          <p><strong>Area:</strong> {{ property.area }} sq ft</p>
+
+          <h4>Features & Policies:</h4>
+          <ul>
+            <li>Pet Friendly: {{ property.accepts_pets|yesno:"Yes,No" }}</li>
+            <li>Swimming Pool: {{ property.pool|yesno:"Yes,No" }}</li>
+            <li>Garden: {{ property.garden|yesno:"Yes,No" }}</li>
+            <li>
+              Smoking Allowed: {{ property.accepts_smokers|yesno:"Yes,No" }}
+            </li>
+            <!-- <li>
+              In-App Payment: {{ property.accepts_in_app_payment|yesno:"Yes,No"
+              }}
+            </li>
+            <li>
+              Cash Payment: {{ property.accepts_cash_payment|yesno:"Yes,No" }}
+            </li> -->
+          </ul>
+
+          <!-- <h4>Lease Information:</h4>
+          <p>
+            <strong>Preferred Lease Term:</strong> {{
+            property.preferred_lease_term }}
+          </p>
+          <p>
+            <strong>Current Tenant:</strong> {{
+            property.current_tenant|yesno:"Yes,No" }}
+          </p>
+
+          <h4>Status Information:</h4>
+          <p>
+            <strong>Available:</strong> {{ property.is_available|yesno:"Yes,No"
+            }}
+          </p>
+          <p>
+            <strong>Approved:</strong> {{ property.is_approved|yesno:"Yes,No" }}
+          </p>
+          <p>
+            <strong>Created:</strong> {{ property.created_at|date:"F j, Y" }}
+          </p>
+          <p>
+            <strong>Last Updated:</strong> {{ property.updated_at|date:"F j, Y"
+            }}
+          </p> -->
+
+          <h4>Property Images:</h4>
+          <div class="image-section">
+            <h5>Main Image:</h5>
+            <img
+              src="{{ domain }}{{ property.main_image.image.url }}"
+              alt="Main Property Image"
+              style="
+                width: 100%;
+                max-width: 500px;
+                height: auto;
+                border-radius: 8px;
+                margin: 10px 0;
+              "
+            />
+          </div>
+          {% if property.images.all %}
+          <div class="image-section">
+            <h5>Additional Images:</h5>
+            {% for image in property.images.all %}
+            <img
+              src="{{ domain }}{{ image.image.url }}"
+              alt="Property Image {{ forloop.counter }}"
+              style="
+                width: 100%;
+                max-width: 500px;
+                height: auto;
+                border-radius: 8px;
+                margin: 10px 0;
+              "
+            />
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+
+        <div style="text-align: center">
+          <a
+            href="https://ro-ja.testaccount.site/approve/properties/{{ property.id }}"
+            class="button approve"
+            >Approve Property</a
+          >
+          <a
+            href="https://ro-ja.testaccount.site/disapprove/properties/{{ property.id }}"
+            class="button disapprove"
+            >Disapprove Property</a
+          >
+        </div>
+      </div>
+      <div class="footer">
+        <p>Thanks for using our site!</p>
+        <p>The {{ site_name }} Team</p>
+      </div>
+    </div>
+  </body>
+</html>

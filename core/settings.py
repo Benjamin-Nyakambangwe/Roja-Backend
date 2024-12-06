@@ -302,4 +302,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # Twilio Configuration
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER') 
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+
+SUPPORT_EMAIL = 'support@ro-ja.com'  # Update this with your actual support email
+  

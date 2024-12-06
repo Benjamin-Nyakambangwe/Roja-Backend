@@ -26,13 +26,25 @@ class CommentSerializer(serializers.ModelSerializer):
     dislike_count = serializers.SerializerMethodField()
     has_liked = serializers.SerializerMethodField()
     has_disliked = serializers.SerializerMethodField()
+    replies = serializers.SerializerMethodField()
+    commenter_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
-        fields = ['id', 'property', 'commenter', 'is_owner', 'content', 
-                 'created_at', 'updated_at', 'like_count', 'dislike_count',
-                 'has_liked', 'has_disliked']
+        fields = ['id', 'property', 'commenter', 'commenter_name', 'is_owner', 
+                 'content', 'created_at', 'updated_at', 'like_count', 
+                 'dislike_count', 'has_liked', 'has_disliked', 'parent', 
+                 'is_reply', 'replies']
         read_only_fields = ['commenter', 'created_at', 'updated_at']
+
+    def get_replies(self, obj):
+        if obj.is_reply:
+            return []
+        replies = Comment.objects.filter(parent=obj).order_by('created_at')
+        return CommentSerializer(replies, many=True, context=self.context).data
+
+    def get_commenter_name(self, obj):
+        return f"{obj.commenter.first_name} {obj.commenter.last_name}"
 
     def get_like_count(self, obj):
         return obj.get_like_count()

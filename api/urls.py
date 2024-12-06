@@ -78,4 +78,9 @@ urlpatterns = [
 
     path('send-verification-code/', views.SendVerificationCodeView.as_view(), name='send-verification-code'),
     path('verify-phone-code/', views.VerifyPhoneCodeView.as_view(), name='verify-phone-code'),
+
+    path('comments/<int:comment_id>/reply/', views.CommentReplyView.as_view(), name='comment-reply'),
+
+    path('properties/<int:property_id>/approve/', views.ApprovePropertyView.as_view(), name='approve-property'),
+    path('properties/<int:property_id>/disapprove/', views.DisapprovePropertyView.as_view(), name='disapprove-property'),
 ]
