@@ -402,10 +402,22 @@ from django.conf import settings
 class AddTenantAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def send_email_notification(self, subject, context):
+        html_message = render_to_string('email/tenant_access.html', context)
+        
+        email = EmailMessage(
+            subject=subject,
+            body=html_message,
+            from_email=settings.EMAIL_HOST_USER,
+            to=[context['recipient_email']]
+        )
+        email.content_subtype = "html"  # Main content is now HTML
+        email.send()
+
     @transaction.atomic
     def post(self, request, property_id):
         if request.user.user_type != 'tenant':
-            return Response({"error": "Only tenants can access properties."}, status=drf_status.HTTP_403_FORBIDDEN)
+            return Response({"error": "Only tenants can access properties."}, status=status.HTTP_403_FORBIDDEN)
         
         try:
             property = Property.objects.get(id=property_id)
@@ -415,55 +427,50 @@ class AddTenantAccessView(APIView):
                 return Response({"error": "You have reached the maximum number of properties you can access."}, status=status.HTTP_400_BAD_REQUEST)
 
             if request.user in property.tenants_with_access.all():
-                return Response({"error": "You already have access to this property."}, status=drf_status.HTTP_400_BAD_REQUEST)
+                return Response({"error": "You already have access to this property."}, status=status.HTTP_400_BAD_REQUEST)
 
             property.tenants_with_access.add(request.user)
             tenant_profile.num_properties -= 1
             tenant_profile.save()
 
-            # Send email to landlord with tenant profile link
-            landlord_email = property.owner.email
-            tenant_name = f"{request.user.first_name} {request.user.last_name}"
-            property_title = property.title
-            tenant_profile_url = f"https://beta.ro-ja.com/tenant-profile/{request.user.id}"
+            # Send email to landlord
+            landlord_context = {
+                'email_title': 'New Tenant Access Request',
+                'property': property,
+                'message': f"A new tenant, {request.user.first_name} {request.user.last_name}, has requested access to your property.",
+                'tenant_profile_url': f"https://beta.ro-ja.com/tenant-profile/{request.user.id}",
+                'recipient_email': property.owner.email
+            }
+            self.send_email_notification(
+                f"New Tenant Access Request for Property: {property.title}",
+                landlord_context
+            )
 
-            subject = f"New Tenant Access Request for Property: {property_title}"
-            message = f"""Dear Landlord,
-
-A new tenant, {tenant_name}, has requested access to your property: {property_title}.
-
-To view the tenant's full profile and credentials, click here:
-{tenant_profile_url}
-
-You can review their profile and make an informed decision about their application.
-
-Best regards,
-ROJA ACCOMODATION Team"""
-
-            from_email = settings.EMAIL_HOST_USER
-            recipient_list = [landlord_email]
-
-            print(f"Attempting to send email to: {landlord_email}")
-            print(f"Attempting to send email from: {settings.EMAIL_HOST_USER}")
-            try:
-                send_mail(subject, message, from_email, recipient_list)
-                print("Email sent successfully")
-            except Exception as e:
-                print(f"Error sending email: {str(e)}")
-                # You might want to add this error to the response
-                return Response({
-                    "message": "Access granted to the property and number of accessible properties updated.",
-                    "warning": f"Failed to notify landlord via email. Error: {str(e)}"
-                }, status=status.HTTP_200_OK)
+            # Send confirmation to tenant
+            tenant_context = {
+                'email_title': 'Property Access Confirmed',
+                'property': property,
+                'message': f"You now have access to view this property. The landlord will be notified of your interest.",
+                'recipient_email': request.user.email
+            }
+            self.send_email_notification(
+                f"Access Granted to Property: {property.title}",
+                tenant_context
+            )
 
             return Response({
-                "message": "Access granted to the property and number of accessible properties updated. Landlord has been notified."
+                "message": "Access granted to the property and number of accessible properties updated. Notifications sent."
             }, status=status.HTTP_200_OK)
 
         except Property.DoesNotExist:
-            return Response({"error": "Property not found."}, status=drf_status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND)
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(f"Error: {str(e)}")
+            return Response({
+                "error": "An error occurred while processing your request."
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from rest_framework.views import APIView
 from rest_framework.response import Response

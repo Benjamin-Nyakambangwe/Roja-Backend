@@ -1,0 +1,120 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Property Access Notification</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Raleway", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #f4f4f4;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 20px auto;
+        background-color: #ffffff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+      }
+      .header {
+        background-color: #344e41;
+        color: #ffffff;
+        padding: 20px;
+        text-align: center;
+      }
+      .content {
+        padding: 30px;
+      }
+      h1 {
+        color: #ffffff;
+        margin-top: 0;
+        font-weight: 700;
+      }
+      .property-details {
+        margin: 20px 0;
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+      }
+      .button {
+        display: inline-block;
+        padding: 12px 24px;
+        background-color: #344e41;
+        color: #ffffff !important;
+        text-decoration: none;
+        border-radius: 5px;
+        font-weight: 700;
+        margin-top: 20px;
+        transition: background-color 0.3s ease;
+      }
+      .button:hover {
+        background-color: #2a3f35;
+      }
+      .footer {
+        background-color: #ecf0f1;
+        color: #344e41;
+        text-align: center;
+        padding: 20px;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img
+          src="https://api.ro-ja.com/media/logo/roja-white.svg"
+          alt="Roja Logo"
+          style="display: block; margin: 0 auto; max-width: 200px; height: auto"
+        />
+        <h1>{{ email_title }}</h1>
+      </div>
+      <div class="content">
+        <div class="property-details">
+          <h3>{{ property.title }}</h3>
+          <p><strong>Location:</strong> {{ property.address }}</p>
+          <p><strong>Price:</strong> ${{ property.price }}</p>
+          <p><strong>Bedrooms:</strong> {{ property.bedrooms }}</p>
+          <p><strong>Bathrooms:</strong> {{ property.bathrooms }}</p>
+        </div>
+
+        <p>{{ message }}</p>
+
+        {% if tenant_profile_url %}
+        <div style="text-align: center">
+          <a href="{{ tenant_profile_url }}" class="button">
+            View Tenant Profile
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      <div class="footer">
+        <p>Thanks for using our site!</p>
+        <p>The ROJA ACCOMODATION Team</p>
+        <p>
+          <a
+            href="https://beta.ro-ja.com/privacy-policy"
+            style="color: #344e41; text-decoration: underline"
+            >Privacy Policy</a
+          >
+          |
+          <a
+            href="https://beta.ro-ja.com/terms-of-service"
+            style="color: #344e41; text-decoration: underline"
+            >Terms of Service</a
+          >
+        </p>
+      </div>
+    </div>
+  </body>
+</html>
