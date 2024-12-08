@@ -114,7 +114,7 @@ DATABASES = {
     }
 }
 
-#EMAIL
+#EMAIL GMAIL
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
 # EMAIL_PORT = 587
@@ -123,17 +123,29 @@ DATABASES = {
 # EMAIL_HOST_PASSWORD = 'oqjezmvwhpizbpei'
 
 
-# Zoho Mail Settings
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.zoho.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'no-reply@ro-ja.com'
-EMAIL_HOST_PASSWORD = 'No-reply@roja1'
+# ZOHO Mail Settings
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.zoho.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'no-reply@ro-ja.com'
+# EMAIL_HOST_PASSWORD = 'No-reply@roja1'
 
-# Required additional settings to prevent relay errors
+# # Required additional settings to prevent relay errors
+# DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
+# SERVER_EMAIL = 'no-reply@ro-ja.com'
+
+
+# Email Settings NAMECHEAP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'mail.privateemail.com'  # Namecheap's SMTP server
+EMAIL_PORT = 587  # Use TLS
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'no-reply@ro-ja.com'  # Your full email address
+EMAIL_HOST_PASSWORD = 'No-reply@roja1*'  # Your email password
+
+# Optional: Set default "from" email address
 DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
-SERVER_EMAIL = 'no-reply@ro-ja.com'
 
 
 #AUTH
