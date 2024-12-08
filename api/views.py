@@ -35,7 +35,7 @@ from twilio.rest import Client
 
 import random
 
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 
 
@@ -1172,6 +1172,53 @@ ROJA ACCOMODATION Team"""
                 {"error": str(e)}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+class ContactFormView(APIView):
+    permission_classes = [permissions.AllowAny]  # Allow anyone to contact support
+
+    def post(self, request):
+        try:
+            # Get form data
+            name = request.data.get('name')
+            email = request.data.get('email')
+            message = request.data.get('message')
+
+            # Validate required fields
+            if not all([name, email, message]):
+                return Response({
+                    'error': 'Name, email and message are required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Prepare email content
+            subject = f'New Contact Form Submission from {name}'
+            html_message = render_to_string('email/contact_form.html', {
+                'name': name,
+                'email': email,
+                'message': message,
+                'submitted_at': timezone.now().strftime('%B %d, %Y, %I:%M %p'),
+                'site_name': 'ROJA ACCOMODATION'
+            })
+
+            # Send email
+            email_message = EmailMessage(
+                subject=subject,
+                body=html_message,
+                from_email=settings.EMAIL_HOST_USER,
+                to=['support@ro-ja.com', 'benjaminnyakambangwe@gmail.com'],
+                reply_to=[email]  # Allow support to reply directly to the sender
+            )
+            email_message.content_subtype = "html"  # Main content is now HTML
+            email_message.send()
+
+            return Response({
+                'message': 'Your message has been sent successfully. We will get back to you soon.'
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(f"Error sending contact form: {str(e)}")
+            return Response({
+                'error': 'Failed to send message. Please try again later.'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

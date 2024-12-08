@@ -83,4 +83,6 @@ urlpatterns = [
 
     path('properties/<int:property_id>/approve/', views.ApprovePropertyView.as_view(), name='approve-property'),
     path('properties/<int:property_id>/disapprove/', views.DisapprovePropertyView.as_view(), name='disapprove-property'),
+
+    path('contact/', views.ContactFormView.as_view(), name='contact-form'),
 ]
