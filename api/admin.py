@@ -2,7 +2,6 @@ from django.contrib import admin
 from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment
 
 
-
 class PropertyImageInline(admin.TabularInline):
     model = PropertyImage
     extra = 1
@@ -85,3 +84,4 @@ class RentPaymentAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related('property', 'tenant')
+

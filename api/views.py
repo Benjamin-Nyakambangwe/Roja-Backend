@@ -13,8 +13,8 @@ from django.db.models import Q
 from django.conf import settings
 from django.contrib.auth import get_user_model
 
-from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment, PhoneVerification
-from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer, RentPaymentSerializer
+from .models import Property, PropertyImage, Application, Message, LeaseAgreement, Review, HouseType, HouseLocation, Comment, RentPayment, PhoneVerification, LeaseDocumentPayment
+from .serializers import PropertySerializer, PropertyImageSerializer, ApplicationSerializer, MessageSerializer, LeaseAgreementSerializer, ReviewSerializer, HouseTypeSerializer, HouseLocationSerializer, CommentSerializer, ChatSerializer, RentPaymentSerializer, LeaseDocumentPaymentSerializer
 from accounts.models import TenantProfile
 from collections import defaultdict  # Add this import
 
@@ -135,7 +135,7 @@ class PropertyListCreateView(APIView):
     permission_classes = [AllowAny]
 
     def get_queryset(self):
-        return Property.objects.filter(current_tenant__isnull=True, is_approved=True).order_by('-id')
+        return Property.objects.filter(current_tenant__isnull=True, is_approved=True).order_by('-overall_rating')
 
     def filter_queryset(self, queryset):
         for backend in list(self.filter_backends):
@@ -314,17 +314,6 @@ class CommentList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(commenter=self.request.user)
 
-# Explanation:
-# This class, CommentList, is a view that handles listing all comments and creating new ones.
-# It uses Django Rest Framework's ListCreateAPIView, which provides GET (list) and POST (create) functionality.
-
-# Key points:
-# 1. queryset: Retrieves all Comment objects from the database.
-# 2. serializer_class: Uses CommentSerializer to convert Comment objects to/from JSON.
-# 3. permission_classes: Allows authenticated users to create comments, but anyone can read them.
-# 4. perform_create method: Overrides the default behavior when creating a comment.
-#    It gets the TenantProfile associated with the current user and sets it as the tenant for the new comment.
-#    This ensures that comments are always associated with the correct tenant profile.
 
 class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Comment.objects.all()
@@ -899,16 +888,6 @@ class SendSMSView(APIView):
 
 
 
-
-
-
-
-
-
-
-
-        
-
 class SendVerificationCodeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1220,5 +1199,532 @@ class ContactFormView(APIView):
                 'error': 'Failed to send message. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class UpdateLandlordRatingsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def calculate_profile_completeness(self, profile):
+        """Calculate profile completeness percentage and bonus rating"""
+        fields_to_check = {
+            # Most important verifications (highest weights)
+            'is_phone_verified': 1.0,  # Phone verification is most important
+            'is_verified': 0.8,        # General verification
+            'is_profile_complete': 0.8,  # Profile completion status
+            
+            # Identity verification (high weights)
+            'id_number': 0.7,
+            'id_image': 0.7,
+            'proof_of_residence': 0.7,
+            
+            # Contact information (medium-high weights)
+            'phone': 0.6,
+            'alternate_phone': 0.4,
+            'emergency_contact_name': 0.5,
+            'emergency_contact_phone': 0.5,
+            
+            # Personal information (medium weights)
+            'profile_image': 0.5,
+            'date_of_birth': 0.4,
+            'marital_status': 0.3,
+            
+            # Additional information (lower weights)
+            'additional_notes': 0.2
+        }
+        
+        completeness_score = 0
+        max_score = sum(fields_to_check.values())
+        
+        for field, weight in fields_to_check.items():
+            field_value = getattr(profile, field, None)
+            if field_value not in [None, '', False]:  # Check for empty values
+                completeness_score += weight
+        
+        # Convert to percentage
+        completeness_percentage = (completeness_score / max_score) * 100
+        
+        # Calculate bonus rating (up to 1.0 extra points for a fully complete profile)
+        bonus_rating = (completeness_percentage / 100) * 1.0
+        
+        return completeness_percentage, bonus_rating
+
+    def post(self, request):
+        try:
+            landlords = get_user_model().objects.filter(user_type='landlord')
+            updated_count = 0
+            ratings_details = []
+
+            for landlord in landlords:
+                try:
+                    # Get all properties owned by this landlord
+                    properties = Property.objects.filter(owner=landlord)
+                    total_rating = 0
+                    total_reviews = 0
+
+                    # Calculate property reviews rating
+                    for property in properties:
+                        property_reviews = Review.objects.filter(property=property)
+                        if property_reviews.exists():
+                            total_rating += sum(review.rating for review in property_reviews)
+                            total_reviews += property_reviews.count()
+
+                    # Calculate base rating from reviews
+                    base_rating = 0
+                    if total_reviews > 0:
+                        base_rating = total_rating / total_reviews
+
+                    # Calculate profile completeness and bonus
+                    landlord_profile = landlord.landlord_profile
+                    completeness_percentage, profile_bonus = self.calculate_profile_completeness(landlord_profile)
+
+                    # Calculate final rating (base rating + profile completeness bonus)
+                    final_rating = base_rating + profile_bonus
+                    final_rating = min(5.0, round(final_rating, 1))  # Cap at 5.0 and round to 1 decimal
+
+                    # Update profile
+                    landlord_profile.current_rating = final_rating
+                    landlord_profile.profile_completeness = round(completeness_percentage, 1)
+                    landlord_profile.save()
+                    updated_count += 1
+
+                    # Store details for response
+                    ratings_details.append({
+                        "landlord_name": f"{landlord.first_name} {landlord.last_name}",
+                        "email": landlord.email,
+                        "base_rating": round(base_rating, 1),
+                        "profile_completeness": round(completeness_percentage, 1),
+                        "profile_bonus": round(profile_bonus, 1),
+                        "final_rating": final_rating,
+                        "total_reviews": total_reviews
+                    })
+
+                except Exception as e:
+                    print(f"Error updating landlord {landlord.email}: {str(e)}")
+
+            return Response({
+                "message": f"Successfully updated {updated_count} landlord ratings",
+                "total_landlords": landlords.count(),
+                "ratings_details": ratings_details
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        """Get current ratings and profile completeness for all landlords"""
+        try:
+            landlords = get_user_model().objects.filter(user_type='landlord')
+            ratings_data = []
+
+            for landlord in landlords:
+                try:
+                    profile = landlord.landlord_profile
+                    properties = Property.objects.filter(owner=landlord)
+                    completeness_percentage, _ = self.calculate_profile_completeness(profile)
+
+                    ratings_data.append({
+                        "landlord_name": f"{landlord.first_name} {landlord.last_name}",
+                        "email": landlord.email,
+                        "current_rating": profile.current_rating,
+                        "profile_completeness": round(completeness_percentage, 1),
+                        "total_properties": properties.count(),
+                        "total_reviews": Review.objects.filter(property__in=properties).count()
+                    })
+
+                except Exception as e:
+                    print(f"Error getting data for landlord {landlord.email}: {str(e)}")
+
+            return Response(ratings_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AnalyzeCommentSentimentsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def analyze_sentiment(self, comment_text):
+        """Use OpenAI to analyze comment sentiment and return a rating"""
+        try:
+            client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
+            
+            messages = [
+                {"role": "system", "content": "You are a sentiment analysis expert. Rate the following property comment on a scale of 1 to 5, where 1 is very negative and 5 is very positive. Only respond with a single number."},
+                {"role": "user", "content": comment_text}
+            ]
+
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=messages,
+                temperature=0.3,
+                max_tokens=10,
+                top_p=1.0,
+                frequency_penalty=0.0,
+                presence_penalty=0.0
+            )
+
+            # Extract the rating from the response
+            rating = float(response.choices[0].message.content.strip())
+            return min(max(rating, 1), 5)  # Ensure rating is between 1 and 5
+
+        except Exception as e:
+            print(f"Error analyzing sentiment: {str(e)}")
+            return None
+
+    def post(self, request):
+        try:
+            # Get unrated comments
+            unrated_comments = Comment.objects.filter(is_rated=False)
+            
+            if not unrated_comments.exists():
+                return Response({
+                    "message": "No unrated comments found"
+                }, status=status.HTTP_200_OK)
+
+            results = []
+            for comment in unrated_comments:
+                try:
+                    # Get sentiment rating
+                    sentiment_rating = self.analyze_sentiment(comment.content)
+                    
+                    if sentiment_rating:
+                        # Update comment with the AI-generated rating
+                        comment.ai_rating = sentiment_rating
+                        comment.is_rated = True
+                        comment.save()
+
+                        results.append({
+                            "comment_id": comment.id,
+                            "content": comment.content,
+                            "ai_rating": sentiment_rating,
+                            "property": comment.property.title,
+                            "commenter": f"{comment.commenter.first_name} {comment.commenter.last_name}"
+                        })
+
+                except Exception as e:
+                    print(f"Error processing comment {comment.id}: {str(e)}")
+                    continue
+
+            return Response({
+                "message": f"Successfully analyzed {len(results)} comments",
+                "results": results
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        """Get statistics about rated and unrated comments"""
+        try:
+            total_comments = Comment.objects.count()
+            rated_comments = Comment.objects.filter(is_rated=True).count()
+            unrated_comments = Comment.objects.filter(is_rated=False).count()
+
+            # Get average AI ratings
+            avg_rating = Comment.objects.filter(
+                is_rated=True
+            ).aggregate(Avg('ai_rating'))['ai_rating__avg']
+
+            return Response({
+                "total_comments": total_comments,
+                "rated_comments": rated_comments,
+                "unrated_comments": unrated_comments,
+                "average_ai_rating": round(avg_rating, 2) if avg_rating else None
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class UpdatePropertyRatingsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def to_float(self, value):
+        """Convert Decimal to float safely"""
+        if value is None:
+            return 0.0
+        return float(value)
+
+    def calculate_property_rating(self, property):
+        """Calculate overall property rating based on reviews, comments, and landlord rating"""
+        try:
+            # Get all reviews for the property
+            reviews = Review.objects.filter(property=property)
+            review_count = reviews.count()
+            avg_review_rating = 0.0
+            
+            if review_count > 0:
+                review_ratings = sum(self.to_float(review.rating) for review in reviews)
+                avg_review_rating = review_ratings / review_count
+
+            # Get all AI-rated comments
+            comments = Comment.objects.filter(
+                property=property,
+                is_rated=True,
+                ai_rating__isnull=False
+            )
+            comment_count = comments.count()
+            avg_comment_rating = 0.0
+            
+            if comment_count > 0:
+                comment_ratings = sum(self.to_float(comment.ai_rating) for comment in comments)
+                avg_comment_rating = comment_ratings / comment_count
+
+            # Get landlord rating
+            landlord_rating = 0.0
+            try:
+                landlord_profile = property.owner.landlord_profile
+                if landlord_profile and landlord_profile.current_rating:
+                    landlord_rating = self.to_float(landlord_profile.current_rating)
+            except Exception as e:
+                print(f"Error getting landlord rating: {str(e)}")
+
+            # Define base weights and adjust based on available data
+            base_weights = {
+                'review': 0.5,    # 50% for reviews
+                'comment': 0.3,   # 30% for comments
+                'landlord': 0.2   # 20% for landlord rating
+            }
+
+            # Determine which components are valid
+            has_reviews = review_count > 0
+            has_comments = comment_count > 0
+            has_landlord_rating = landlord_rating > 0
+
+            # Calculate adjusted weights based on available components
+            adjusted_weights = {}
+            total_base = 0
+
+            if has_reviews:
+                adjusted_weights['review'] = base_weights['review']
+                total_base += base_weights['review']
+            
+            if has_comments:
+                adjusted_weights['comment'] = base_weights['comment']
+                total_base += base_weights['comment']
+            
+            if has_landlord_rating:
+                # Only count landlord rating if there's at least one other component
+                if has_reviews or has_comments:
+                    adjusted_weights['landlord'] = base_weights['landlord']
+                    total_base += base_weights['landlord']
+                else:
+                    # If only landlord rating exists, cap its weight
+                    adjusted_weights['landlord'] = 0.3  # Cap at 30% if it's the only component
+                    total_base = 0.3
+
+            # Normalize weights if necessary
+            if total_base > 0:
+                for key in adjusted_weights:
+                    adjusted_weights[key] = adjusted_weights[key] / total_base
+
+            # Calculate weighted average
+            weighted_sum = 0.0
+            if has_reviews:
+                weighted_sum += float(avg_review_rating) * adjusted_weights['review']
+            if has_comments:
+                weighted_sum += float(avg_comment_rating) * adjusted_weights['comment']
+            if has_landlord_rating:
+                weighted_sum += float(landlord_rating) * adjusted_weights['landlord']
+
+            # Calculate final rating
+            overall_rating = weighted_sum if total_base > 0 else 0.0
+
+            return {
+                'overall_rating': round(float(overall_rating), 1),
+                'review_rating': round(float(avg_review_rating), 1),
+                'comment_rating': round(float(avg_comment_rating), 1),
+                'landlord_rating': round(float(landlord_rating), 1),
+                'review_count': review_count,
+                'comment_count': comment_count,
+                'weights_used': adjusted_weights,
+                'components_present': {
+                    'has_reviews': has_reviews,
+                    'has_comments': has_comments,
+                    'has_landlord_rating': has_landlord_rating
+                }
+            }
+
+        except Exception as e:
+            print(f"Error calculating rating for property {property.id}: {str(e)}")
+            return None
+
+    def post(self, request):
+        try:
+            # Get all properties
+            properties = Property.objects.all()
+            updated_count = 0
+            results = []
+
+            for property in properties:
+                try:
+                    rating_data = self.calculate_property_rating(property)
+                    
+                    if rating_data:
+                        # Update property rating
+                        property.overall_rating = rating_data['overall_rating']
+                        property.save()
+                        updated_count += 1
+
+                        # Store results
+                        results.append({
+                            "property_id": property.id,
+                            "title": property.title,
+                            "overall_rating": rating_data['overall_rating'],
+                            "review_rating": rating_data['review_rating'],
+                            "comment_rating": rating_data['comment_rating'],
+                            "review_count": rating_data['review_count'],
+                            "comment_count": rating_data['comment_count']
+                        })
+
+                except Exception as e:
+                    print(f"Error updating property {property.id}: {str(e)}")
+                    continue
+
+            return Response({
+                "message": f"Successfully updated {updated_count} property ratings",
+                "total_properties": properties.count(),
+                "results": results
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get(self, request):
+        """Get current ratings for all properties"""
+        try:
+            properties = Property.objects.all()
+            ratings_data = []
+
+            for property in properties:
+                try:
+                    rating_data = self.calculate_property_rating(property)
+                    if rating_data:
+                        ratings_data.append({
+                            "property_id": property.id,
+                            "title": property.title,
+                            "current_rating": property.overall_rating,
+                            "calculated_rating": rating_data['overall_rating'],
+                            "review_rating": rating_data['review_rating'],
+                            "comment_rating": rating_data['comment_rating'],
+                            "review_count": rating_data['review_count'],
+                            "comment_count": rating_data['comment_count']
+                        })
+
+                except Exception as e:
+                    print(f"Error getting data for property {property.id}: {str(e)}")
+
+            return Response(ratings_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                "error": f"An error occurred: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+class ProcessLeaseDocumentPaymentView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            # Get payment details from request first
+            email = request.data.get('email')
+            phone = request.data.get('phone')
+            propertyId = request.data.get('property_id')
+            amount = 20.00  # Fixed amount for lease document payment - specify as float
+            
+            print("Request data:", request.data)
+            print("Property ID:", propertyId)
+            print("Email:", email)
+            print("Phone:", phone)
+
+            if not all([email, phone, propertyId]):
+                return Response({
+                    'error': 'Email, phone number and propertyId required'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                property = Property.objects.get(id=propertyId)
+            except Property.DoesNotExist:
+                return Response({
+                    'error': f'Property with ID {propertyId} not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+
+            # Create payment record without specifying ID
+            payment = LeaseDocumentPayment.objects.create(
+                landlord=request.user,
+                amount=amount,
+                status='PENDING',
+                property=property
+            )
+
+            print("Payment created:", payment.id)
+
+            # Initialize Paynow
+            paynow = Paynow(
+                settings.PAYNOW_INTEGRATION_ID,
+                settings.PAYNOW_INTEGRATION_KEY,
+                settings.PAYNOW_RESULT_URL,
+                settings.PAYNOW_RETURN_URL
+            )
+
+            # Create payment reference
+            reference = f'lease_document_{payment.id}_{uuid.uuid4()}'
+            print("Payment reference:", reference)
+
+            try:
+                paynow_payment = paynow.create_payment(reference, email)
+                # Make sure amount is converted to float
+                paynow_payment.add('Lease Document Payment', float(amount))
+
+                print("Attempting mobile payment...")
+                response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
+                print("Paynow response:", response.__dict__)
+                
+                if response.success:
+                    time.sleep(30)  # Wait for payment processing
+                    status_response = paynow.check_transaction_status(response.poll_url)
+                    print("Status response:", status_response.__dict__)
+                    
+                    if status_response.status == 'paid':
+                        payment.status = 'PAID'
+                        payment.payment_date = timezone.now().date()
+                        payment.transaction_id = reference
+                        payment.save()
+
+                        return Response({
+                            "message": "Payment processed successfully",
+                            "payment": LeaseDocumentPaymentSerializer(payment).data,
+                            "poll_url": response.poll_url,
+                            "reference": reference,
+                            "status": status_response.status
+                        })
+                    else:
+                        return Response({
+                            "error": "Payment not completed",
+                            "status": status_response.status
+                        }, status=status.HTTP_400_BAD_REQUEST)
+                else:
+                    error_message = response.data.get('error') if hasattr(response, 'data') else 'Payment initialization failed'
+                    return Response({
+                        'error': error_message
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            except Exception as e:
+                print("Paynow error:", str(e))
+                return Response({
+                    'error': f'Payment processing error: {str(e)}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        except Exception as e:
+            print("General error:", str(e))
+            return Response({
+                'error': f'An error occurred: {str(e)}'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

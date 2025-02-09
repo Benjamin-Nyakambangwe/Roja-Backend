@@ -7,13 +7,23 @@
         font-family: Arial, sans-serif;
         line-height: 1.6;
         padding: 40px;
+        max-width: 800px;
+        margin: 0 auto;
       }
       .header {
         text-align: center;
         margin-bottom: 30px;
+        border-bottom: 2px solid #000;
+        padding-bottom: 20px;
       }
       .section {
-        margin-bottom: 20px;
+        margin-bottom: 30px;
+      }
+      .party-details {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
       }
       .signature-line {
         border-top: 1px solid black;
@@ -23,55 +33,81 @@
       }
       .signatures {
         margin-top: 50px;
+        page-break-inside: avoid;
+      }
+      .signature-block {
+        margin-bottom: 30px;
+      }
+      h1,
+      h2,
+      h3,
+      h4 {
+        margin-top: 20px;
+        margin-bottom: 10px;
+      }
+      .date {
+        text-align: right;
+        margin-bottom: 30px;
+      }
+      .property-details {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border-radius: 5px;
       }
     </style>
   </head>
   <body>
     <div class="header">
       <h1>LEASE AGREEMENT</h1>
+    </div>
+
+    <div class="date">Date: {{ generated_date }}</div>
+
+    <p>This Lease Agreement ("Agreement") is made and entered into between:</p>
+
+    <div class="party-details">
+      <h3>LANDLORD</h3>
       <p>
-        This Lease Agreement ("Agreement") is made and entered into on {{
-        generated_date }}, by and between:
+        <strong>Name:</strong> {{ landlord.first_name }} {{ landlord.last_name }}
       </p>
+      <p><strong>Phone Number:</strong> {{ landlord.landlord_profile.phone }}</p>
+      <p><strong>Address:</strong> {{ landlord.landlord_profile.address|default:"" }}</p>
+      <p>(hereinafter referred to as the "Landlord")</p>
+    </div>
+
+    <div class="party-details">
+      <h3>TENANT</h3>
+      <p>
+        <strong>Name:</strong> {{ tenant.first_name }} {{ tenant.last_name }}
+      </p>
+      <p><strong>Phone Number:</strong> {{ tenant.tenant_profile.phone }}</p>
+      <p><strong>Address:</strong> {{ tenant.tenant_profile.address|default:"" }}</p>
+      <p>(hereinafter referred to as the "Tenant")</p>
+    </div>
+
+    <div class="property-details">
+      <h3>PROPERTY</h3>
+      <p><strong>Property Address:</strong> {{ property.address }}</p>
+      <p><strong>Property Description:</strong> {{ property.title }}</p>
     </div>
 
     <div class="section">
-      <p>
-        <strong>Landlord:</strong> {{ landlord.first_name }} {{
-        landlord.last_name }}, Phone Number: {{ landlord.landlord_profile.phone
-        }}, residing at {{ landlord.landlord_profile.address }} (hereinafter
-        referred to as the "Landlord"), and
-      </p>
-
-      <p>
-        <strong>Tenant:</strong> {{ tenant.first_name }} {{ tenant.last_name }},
-        Phone Number: {{ tenant.tenant_profile.phone }}, residing at {{
-        tenant.tenant_profile.address }} (hereinafter referred to as the
-        "Tenant").
-      </p>
-
-      <p>
-        <strong>Property:</strong> {{ property.address }} (hereinafter referred
-        to as the "Property").
-      </p>
-    </div>
-
-    <div class="section">
-      <h3>1. Term of Lease</h3>
+      <h3>1. TERM OF LEASE</h3>
       <p>
         The Landlord hereby leases the Property to the Tenant for a term
-        commencing on {{ start_date }} and ending on {{ end_date }} (the
-        "Term").
+        commencing on <strong>{{ start_date }}</strong> and ending on
+        <strong>{{ end_date }}</strong> (the "Term").
       </p>
     </div>
 
     <div class="section">
-      <h3>2. Rent</h3>
+      <h3>2. RENT</h3>
       <h4>2.1 Rent Amount</h4>
       <p>
-        The Tenant agrees to pay the Landlord a monthly rent of ${{ rent_amount
-        }} or its equivalent in other currencies as agreed, due on or before the
-        first day of each month.
+        The Tenant agrees to pay the Landlord a monthly rent of
+        <strong>${{ rent_amount }}</strong> or its equivalent in other
+        currencies as agreed, due on or before the first day of each month.
       </p>
 
       <h4>2.2 Payment Method</h4>
@@ -90,37 +126,40 @@
     </div>
 
     <div class="section">
-      <h3>3. Security Deposit</h3>
+      <h3>3. SECURITY DEPOSIT</h3>
       <p>
-        The Tenant shall pay a refundable security deposit of ${{ deposit_amount
-        }} upon signing this Agreement.
+        The Tenant shall pay a refundable security deposit of
+        <strong>${{ deposit_amount }}</strong> upon signing this Agreement.
       </p>
     </div>
 
-    <!-- ... Include all other sections from the template ... -->
-
     <div class="signatures">
       <div class="signature-block">
-        <p>Landlord Name: {{ landlord.first_name }} {{ landlord.last_name }}</p>
+        <p>
+          <strong>Landlord:</strong> {{ landlord.first_name }} {{ landlord.last_name }}
+        </p>
         <div class="signature-line"></div>
-        <p>Landlord Signature: _______________________</p>
+        <p>Signature: _______________________</p>
+        <p>Date: _______________________</p>
       </div>
 
       <div class="signature-block">
-        <p>Tenant Name: {{ tenant.first_name }} {{ tenant.last_name }}</p>
+        <p>
+          <strong>Tenant:</strong> {{ tenant.first_name }} {{ tenant.last_name }}
+        </p>
         <div class="signature-line"></div>
-        <p>Tenant Signature: _______________________</p>
+        <p>Signature: _______________________</p>
+        <p>Date: _______________________</p>
       </div>
 
       <div class="signature-block">
-        <p>Witness Name: _______________________</p>
+        <p><strong>Witness:</strong></p>
         <div class="signature-line"></div>
-        <p>Witness Phone Number: _______________________</p>
-        <div class="signature-line"></div>
-        <p>Witness Signature: _______________________</p>
+        <p>Name: _______________________</p>
+        <p>Phone Number: _______________________</p>
+        <p>Signature: _______________________</p>
+        <p>Date: _______________________</p>
       </div>
-
-      <p>Date: {{ generated_date }}</p>
     </div>
   </body>
 </html>

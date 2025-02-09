@@ -1,7 +1,7 @@
 from djoser.serializers import UserCreateSerializer
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from .models import LandlordProfile, TenantProfile, PricingTier
+from .models import LandlordProfile, TenantProfile, PricingTier, TenantRating
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
@@ -71,3 +71,21 @@ class TenantProfileLimitedSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenantProfile
         fields = ['num_properties', 'subscription_plan', 'subscription_status', 'pricing_tier']
+
+
+
+class TenantRatingSerializer(serializers.ModelSerializer):
+    tenant_name = serializers.SerializerMethodField()
+    landlord_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TenantRating
+        fields = ['id', 'tenant', 'landlord', 'rating', 'comment', 'created_at', 
+                 'tenant_name', 'landlord_name']
+        read_only_fields = ['landlord', 'created_at']
+
+    def get_tenant_name(self, obj):
+        return f"{obj.tenant.user.first_name} {obj.tenant.user.last_name}"
+
+    def get_landlord_name(self, obj):
+        return f"{obj.landlord.user.first_name} {obj.landlord.user.last_name}"

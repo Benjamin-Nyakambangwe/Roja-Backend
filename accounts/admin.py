@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import UserAccount, LandlordProfile, TenantProfile, PricingTier, Payment
+from .models import UserAccount, LandlordProfile, TenantProfile, PricingTier, Payment, TenantRating
 
 
 
@@ -33,7 +33,7 @@ class PricingTierAdmin(admin.ModelAdmin):
 
 @admin.register(LandlordProfile)
 class LandlordProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'is_profile_complete', 'is_verified', 'last_updated')
+    list_display = ('id', 'user', 'phone', 'is_profile_complete', 'is_verified', 'current_rating', 'last_updated')
     list_filter = ('is_profile_complete', 'is_verified')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone', 'emergency_contact_name')
     fieldsets = (
@@ -49,7 +49,7 @@ class LandlordProfileAdmin(admin.ModelAdmin):
 
 @admin.register(TenantProfile)
 class TenantProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'occupation', 'is_profile_complete', 'last_updated')
+    list_display = ('id', 'user', 'phone', 'occupation', 'is_profile_complete', 'current_rating', 'last_updated')
     list_filter = ('is_profile_complete', 'pets', 'smoker', 'has_vehicle', 'criminal_record')
     search_fields = ('user__email', 'user__first_name', 'user__last_name', 'phone', 'occupation', 'employer')
     fieldsets = (
@@ -76,3 +76,9 @@ class PaymentAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 
+@admin.register(TenantRating)
+class TenantRatingAdmin(admin.ModelAdmin):
+    list_display = ('tenant', 'landlord', 'rating', 'created_at')
+    list_filter = ('rating', 'created_at')
+    search_fields = ('tenant__user__email', 'landlord__user__email', 'comment')
+    date_hierarchy = 'created_at'

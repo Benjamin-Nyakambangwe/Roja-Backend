@@ -5,11 +5,11 @@ from rest_framework.views import APIView
 from djoser.social.views import ProviderAuthView
 from rest_framework_simplejwt.views import(TokenObtainPairView, TokenRefreshView, TokenVerifyView)
 from .serializers import CustomTokenObtainPairSerializer
-
+from .serializers import TenantRatingSerializer
 from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework import status as drf_status
-from .models import LandlordProfile, TenantProfile, PricingTier
+from .models import LandlordProfile, TenantProfile, PricingTier, TenantRating
 from .serializers import LandlordProfileSerializer, TenantProfileSerializer
 from api.models import RentPayment
 from django.utils import timezone
@@ -27,6 +27,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from bs4 import BeautifulSoup
+from django.db.models import Avg
+
 
 class CustomProviderAuthView(ProviderAuthView):
     def post(self, request, *args, **kwargs):
@@ -911,3 +913,71 @@ ROJA ACCOMODATION Team"""
             email.send(fail_silently=False)
         except Exception as e:
             print(f"Failed to send email with attachment. Error: {str(e)}")
+
+
+
+class TenantRatingCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        try:
+            tenant_id = request.data.get('tenant')
+            rating = request.data.get('rating')
+            comment = request.data.get('comment')
+
+            # Get tenant and landlord profiles
+            tenant_profile = TenantProfile.objects.get(id=tenant_id)
+            landlord_profile = request.user.landlord_profile
+
+            # Create new rating
+            rating_obj = TenantRating.objects.create(
+                tenant=tenant_profile,
+                landlord=landlord_profile,
+                rating=rating,
+                comment=comment
+            )
+
+            # Update tenant's overall rating (average of all ratings)
+            avg_rating = TenantRating.objects.filter(
+                tenant=tenant_profile
+            ).aggregate(Avg('rating'))['rating__avg']
+            
+            tenant_profile.current_rating = round(float(avg_rating), 2)
+            tenant_profile.save()
+
+            serializer = TenantRatingSerializer(rating_obj)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class TenantRatingListView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, tenant_id=None):
+        try:
+            if tenant_id:
+                # Get ratings for specific tenant
+                ratings = TenantRating.objects.filter(tenant_id=tenant_id)
+            else:
+                # Get all ratings made by the landlord
+                try:
+                    landlord_profile = request.user.landlord_profile
+                    ratings = TenantRating.objects.filter(landlord=landlord_profile)
+                except:
+                    return Response({
+                        'error': 'Only landlords can view ratings'
+                    }, status=status.HTTP_403_FORBIDDEN)
+
+            serializer = TenantRatingSerializer(ratings, many=True)
+            return Response(serializer.data)
+
+        except Exception as e:
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+

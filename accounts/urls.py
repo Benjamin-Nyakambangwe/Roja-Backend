@@ -4,6 +4,7 @@ from .views import LandlordProfileView, TenantProfileView, LandlordProfileListVi
 from .views import TenantProfileLimitedView, LandlordProfileLimitedView, getTenantProfileView
 from .views import AddTenantAccessView
 from .views import SetCurrentTenantView, RevokeCurrentTenantView, SetCurrentTenantWithLeaseDocView
+from .views import TenantRatingListView, TenantRatingCreateView
 
 urlpatterns = [
     re_path(
@@ -33,6 +34,12 @@ urlpatterns = [
     path('set-current-tenant/<int:property_id>/', SetCurrentTenantView.as_view(), name='set-current-tenant'),
     path('set-current-tenant-with-lease-doc/<int:property_id>/', SetCurrentTenantWithLeaseDocView.as_view(), name='set-current-tenant-with-lease-doc'),
     path('revoke-current-tenant/<int:property_id>/', RevokeCurrentTenantView.as_view(), name='revoke-current-tenant'),
+
+
+        # Add these to your urlpatterns
+    path('tenant-ratings/', TenantRatingListView.as_view(), name='tenant-ratings-list'),
+    path('tenant-ratings/<int:tenant_id>/', TenantRatingListView.as_view(), name='tenant-ratings-detail'),
+    path('rate-tenant/', TenantRatingCreateView.as_view(), name='rate-tenant'),
 ]
 
         

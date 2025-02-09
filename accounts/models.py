@@ -70,6 +70,7 @@ class LandlordProfile(models.Model):
     date_of_birth = models.DateField( blank=True, null=True)
     phone = models.CharField(max_length=50, blank=True, null=True)
     alternate_phone = models.CharField(max_length=15, blank=True, null=True) 
+    address = models.TextField(blank=True, null=True)
 
     # Communication Preferences
     emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
@@ -87,6 +88,7 @@ class LandlordProfile(models.Model):
     proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
     marital_status = models.CharField(max_length=100, blank=True, null=True)
     is_phone_verified = models.BooleanField(default=False, blank=True, null=True)
+    current_rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, default=0.00)
 
     def __str__(self):
         return f"Landlord Profile: {self.user.email}"
@@ -100,6 +102,7 @@ class TenantProfile(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
     gender = models.CharField(max_length=10, blank=True, null=True)
     phone = models.CharField(max_length=50, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
     emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
     emergency_contact_phone = models.CharField(max_length=15, blank=True, null=True)
     # Additional Personal Details
@@ -150,10 +153,24 @@ class TenantProfile(models.Model):
 
     subscription_plan = models.CharField(max_length=100, blank=True, null=True)
     subscription_status = models.CharField(max_length=100, blank=True, null=True)
-
+    current_rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, default=0.00)
 
     def __str__(self):
         return f"Tenant Profile: {self.user.email}"
+    
+class TenantRating(models.Model):
+    tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, related_name='tenant_ratings')
+    landlord = models.ForeignKey(LandlordProfile, on_delete=models.CASCADE, related_name='landlord_ratings')
+    rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True, default=0.00)
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Add this to ensure one landlord can only rate a tenant once
+        unique_together = ('tenant', 'landlord')
+
+    def __str__(self):
+        return f"Tenant Rating: {self.tenant.user.email}"
 
 class PricingTier(models.Model):
     name = models.CharField(max_length=100, blank=True, null=True)
@@ -196,4 +213,5 @@ def save_user_profile(sender, instance, **kwargs):
         instance.landlord_profile.save()
     elif instance.user_type == 'tenant':
         instance.tenant_profile.save()
+
 

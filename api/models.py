@@ -38,12 +38,15 @@ class Property(models.Model):
     proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
     affidavit = models.FileField(upload_to=upload_to, null=True, blank=True)
     is_approved = models.BooleanField(default=False)
+    overall_rating = models.FloatField(default=0, null=True, blank=True)
 
     class Meta:
         indexes = [
             models.Index(fields=['owner']),
             models.Index(fields=['title']),
+            models.Index(fields=['-overall_rating']),
         ]
+        ordering = ['-overall_rating', '-id']
 
     def __str__(self):
         return self.title
@@ -157,6 +160,8 @@ class Comment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
     is_reply = models.BooleanField(default=False)
+    is_rated = models.BooleanField(default=False)
+    ai_rating = models.FloatField(null=True, blank=True, default=0.00)
     
     likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='comment_likes', blank=True)
     dislikes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='comment_dislikes', blank=True)
@@ -277,3 +282,25 @@ class PhoneVerification(models.Model):
         return timezone.now() > expiration_time
 
 
+class LeaseDocumentPayment(models.Model):
+    landlord = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, default='PENDING')
+    payment_date = models.DateField(null=True, blank=True)
+    transaction_id = models.CharField(max_length=100, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Lease Document Payment - {self.landlord.email} - {self.status}"
+
+    # def save(self, *args, **kwargs):
+    #     # This save method overrides the default save behavior
+    #     # If a payment is still PENDING but its due date has passed,
+    #     # automatically update its status to OVERDUE before saving
+    #     if self.status == 'PENDING' and self.due_date < timezone.now().date():
+    #         self.status = 'OVERDUE'
+        
+    #     # Call the parent class's save method to actually save the object
+    #     super().save(*args, **kwargs)

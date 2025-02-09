@@ -85,4 +85,14 @@ urlpatterns = [
     path('properties/<int:property_id>/disapprove/', views.DisapprovePropertyView.as_view(), name='disapprove-property'),
 
     path('contact/', views.ContactFormView.as_view(), name='contact-form'),
+
+    path('update-landlord-ratings/', views.UpdateLandlordRatingsView.as_view(), name='update-landlord-ratings'),
+
+    path('analyze-comments/', views.AnalyzeCommentSentimentsView.as_view(), name='analyze-comments'),
+
+    path('update-property-ratings/', views.UpdatePropertyRatingsView.as_view(), name='update-property-ratings'),
+
+    path('process-lease-document-payment/', views.ProcessLeaseDocumentPaymentView.as_view(), name='process-lease-document-payment'),
+
+
 ]

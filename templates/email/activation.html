@@ -79,18 +79,21 @@
           process for your account.
         </p>
         <p>Please click the button below to activate your account:</p>
-        <a
-          href="{{ protocol }}://{{ domain }}/{{ url|safe }}"
-          class="button"
-          style="color: #ffffff !important; text-decoration: none"
-        >
-          Activate Account
-        </a>
+
+        <div style="text-align: center">
+          <a
+            href="{{ protocol }}://{{ domain }}/activate/{{ uid }}/{{ token }}"
+            class="button"
+          >
+            Activate Account
+          </a>
+        </div>
+
         <p>
           If the button doesn't work, you can also copy and paste the following
           link into your browser:
         </p>
-        <p>{{ protocol }}://{{ domain }}/{{ url|safe }}</p>
+        <p>{{ protocol }}://{{ domain }}/activate/{{ uid }}/{{ token }}</p>
         <p>This activation link will expire in 7 days.</p>
         <p>
           If you didn't create an account on {{ site_name }}, you can safely

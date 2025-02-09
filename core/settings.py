@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-
+from datetime import timedelta
 # Load environment variables from .env file
 load_dotenv()
 
@@ -98,7 +98,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'roja_db',
 #         'USER': 'postgres',
-#         'PASSWORD': '123456SEVEN',
+#         'PASSWORD': '123456seven',
 #         'HOST': 'localhost'
 #     }
 # }
@@ -230,7 +230,10 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'AUTH_HEADER_TYPES':     ('JWT',),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
+
 
 #DJOSER
 DJOSER ={
@@ -242,9 +245,9 @@ DJOSER ={
     'PASSWORD_CHANGED_EMAIL_CONFIRMATION': True,
     'SET_PASSWORD_RETYPE': True,
     'SET_USERNAME_RETYPE': True,
-    'PASSWORD_RESET_CONFIRM_URL': 'reset-password{uid}{token}',
-    'USERNAME_RESET_CONFIRM_URL': 'emailresetconfirm{uid}{token}',
-    'ACTIVATION_URL': 'activate{uid}{token}',
+    'PASSWORD_RESET_CONFIRM_URL': 'reset-password/{uid}/{token}',
+    'USERNAME_RESET_CONFIRM_URL': 'email-reset/{uid}/{token}',
+    'ACTIVATION_URL': 'activate/{uid}/{token}',
     'SEND_ACTIVATION_EMAIL': True,
     'SOCIAL_AUTH_ALLOWED_REDIRECT_URIS': ['httplocalhost3000authgoogle', 'httplocalhost3000authfacebook'],
     'SERIALIZERS': {
@@ -293,11 +296,13 @@ SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
 
 
 
-PAYNOW_INTEGRATION_ID = '19317'
-PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
-PAYNOW_RESULT_URL = 'http://localhost:8000/auth/result'
-# PAYNOW_RETURN_URL = 'httplocalhost3000payment-success'
-PAYNOW_RETURN_URL = 'https://beta.ro-ja.com/payment-success'
+# PAYNOW_INTEGRATION_ID = '19317'
+# PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
+
+PAYNOW_INTEGRATION_ID = os.getenv('PAYNOW_INTEGRATION_ID')
+PAYNOW_INTEGRATION_KEY = os.getenv('PAYNOW_INTEGRATION_KEY')
+PAYNOW_RESULT_URL = os.getenv('PAYNOW_RESULT_URL')
+PAYNOW_RETURN_URL = os.getenv('PAYNOW_RETURN_URL')
 
 # Add Channels configuration
 ASGI_APPLICATION = 'core.asgi.application'
