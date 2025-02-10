@@ -635,7 +635,8 @@ class ProcessRentPaymentView(APIView):
             # Create payment reference
             reference = f'Rent_{payment.id}_{uuid.uuid4()}'
             paynow_payment = paynow.create_payment(reference, email)
-            paynow_payment.add('Rent Payment', float(payment.amount))
+            paynow_payment.add('Rent Payment', float(0.02))
+            # TODO: change to payment.amount
 
             try:
                 response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
@@ -663,7 +664,7 @@ class ProcessRentPaymentView(APIView):
 
                         return Response({
                             "message": "Payment processed successfully and next month's payment created",
-                            "payment": RentPaymentSerializer(payment).data,
+                            # "payment": RentPaymentSerializer(payment).data,
                             "poll_url": response.poll_url,
                             "reference": reference,
                             "status": status_response.status
@@ -931,6 +932,7 @@ class SendVerificationCodeView(APIView):
 
             # Send verification code
             message = client.messages.create(
+                messaging_service_sid='MG9924fb70a35727bb3f7bd5da7af55df1',
                 body=f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes.",
                 from_=settings.TWILIO_PHONE_NUMBER,
                 to=profile.phone
@@ -1638,7 +1640,7 @@ class ProcessLeaseDocumentPaymentView(APIView):
             email = request.data.get('email')
             phone = request.data.get('phone')
             propertyId = request.data.get('property_id')
-            amount = 20.00  # Fixed amount for lease document payment - specify as float
+            amount = 0.02  # Fixed amount for lease document payment - specify as float
             
             print("Request data:", request.data)
             print("Property ID:", propertyId)
@@ -1679,52 +1681,66 @@ class ProcessLeaseDocumentPaymentView(APIView):
             reference = f'lease_document_{payment.id}_{uuid.uuid4()}'
             print("Payment reference:", reference)
 
-            try:
-                paynow_payment = paynow.create_payment(reference, email)
-                # Make sure amount is converted to float
-                paynow_payment.add('Lease Document Payment', float(amount))
-
-                print("Attempting mobile payment...")
-                response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
-                print("Paynow response:", response.__dict__)
-                
-                if response.success:
-                    time.sleep(30)  # Wait for payment processing
-                    status_response = paynow.check_transaction_status(response.poll_url)
-                    print("Status response:", status_response.__dict__)
-                    
-                    if status_response.status == 'paid':
-                        payment.status = 'PAID'
-                        payment.payment_date = timezone.now().date()
-                        payment.transaction_id = reference
-                        payment.save()
-
-                        return Response({
-                            "message": "Payment processed successfully",
-                            "payment": LeaseDocumentPaymentSerializer(payment).data,
-                            "poll_url": response.poll_url,
-                            "reference": reference,
-                            "status": status_response.status
-                        })
-                    else:
-                        return Response({
-                            "error": "Payment not completed",
-                            "status": status_response.status
-                        }, status=status.HTTP_400_BAD_REQUEST)
-                else:
-                    error_message = response.data.get('error') if hasattr(response, 'data') else 'Payment initialization failed'
-                    return Response({
-                        'error': error_message
-                    }, status=status.HTTP_400_BAD_REQUEST)
+            paynow_payment = paynow.create_payment(reference, email)
+            print("TRACK 1")
+            # Make sure amount is converted to float
+            paynow_payment.add('Lease Document Payment', float(amount))
+            print("TRACK 2")
+            print("Attempting mobile payment...")
+            response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
+            print("TRACK 3")
+            print("Paynow response:", response.__dict__)
             
-            except Exception as e:
-                print("Paynow error:", str(e))
+            if response.success:
+                print("TRACK 4")
+                time.sleep(30)  # Wait for payment processing
+                status_response = paynow.check_transaction_status(response.poll_url)
+                print("TRACK 5")
+                print("Status response:", status_response.__dict__)
+                print(status_response.status)
+                
+                if status_response.status == 'paid':
+                    print("TRACK 6")
+                    payment.status = 'PAID'
+                    print("TRACK 7")
+                    payment.payment_date = timezone.now().date()
+                    print("TRACK 8")
+                    payment.transaction_id = reference
+                    print("TRACK 9")
+                    payment.save()
+                    print("TRACK 10")
+                    return Response({
+                        
+                        "message": "Payment processed successfully",
+                        # "payment": LeaseDocumentPaymentSerializer(payment).data,
+                        "poll_url": response.poll_url,
+                        "reference": reference,
+                        "status": status_response.status
+                    })
+                    print("TRACK 11")
+                else:
+                    print("TRACK 12")
+                    return Response({
+                       
+                        "error": "Payment not completed",
+                        "status": status_response.status
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                    print("TRACK 13")
+            else:
+                print("TRACK 14")
+                error_message = response.data.get('error') if hasattr(response, 'data') else 'Payment initialization failed'
+                print("TRACK 15")
                 return Response({
-                    'error': f'Payment processing error: {str(e)}'
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                    
+                    'error': error_message
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        
 
         except Exception as e:
+            print("TRACK 20")
             print("General error:", str(e))
             return Response({
+                
                 'error': f'An error occurred: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

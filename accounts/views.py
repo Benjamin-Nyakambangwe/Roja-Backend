@@ -244,18 +244,20 @@ class InitiatePaymentView(APIView):
         # amount = request.data.get('amount')
         plan = request.data.get('plan')
         if plan == 'basic':
-            amount = 5
+            amount = 0.005
             pricing_tier = PricingTier.objects.get(name='Basic')
         elif plan == 'standard':
-            amount = 15
+            amount = 0.015
             pricing_tier = PricingTier.objects.get(name='Standard')
         elif plan == 'premium':
-            amount = 30
+            amount = 0.030
+
             pricing_tier = PricingTier.objects.get(name='Premium')
         elif plan == 'luxury':
-            amount = 50
+            amount = 0.050
             pricing_tier = PricingTier.objects.get(name='Luxury')
         else:
+
             return Response({'error': 'Invalid plan'}, status=drf_status.HTTP_400_BAD_REQUEST)
 
         paynow = Paynow(
@@ -277,29 +279,33 @@ class InitiatePaymentView(APIView):
                 print('success')
                 status = paynow.check_transaction_status(response.poll_url)
                 print(status.status)
-                Payment.objects.create(
-                    reference=reference,
-                    poll_url=response.poll_url,
-                    amount=amount,
-                    phone=phone,
-                    email=email,
-                    status = status.status,
-                    tenant = tenant_profile
-                )
-                # Update tenant profile
-                tenant_profile.subscription_plan = plan
-                tenant_profile.subscription_status = 'active'
-                tenant_profile.pricing_tier = pricing_tier
-                tenant_profile.num_properties = pricing_tier.max_properties
-                tenant_profile.save()
+                if status.status == 'paid':
+                    Payment.objects.create(
+                        reference=reference,
+                        poll_url=response.poll_url,
+                        amount=amount,
+                        phone=phone,
+                        email=email,
+                        status = status.status,
+                        tenant = tenant_profile
+                    )
+                    # Update tenant profile
+                    tenant_profile.subscription_plan = plan
+                    tenant_profile.subscription_status = 'active'
+                    tenant_profile.pricing_tier = pricing_tier
+                    tenant_profile.num_properties = pricing_tier.max_properties
+                    tenant_profile.save()
                 
-                return Response({
-                    'poll_url': response.poll_url,
-                    'reference': reference,
-                    'status': status.status
-                }, status=drf_status.HTTP_200_OK)
+                    return Response({
+                        'poll_url': response.poll_url,
+                        'reference': reference,
+                            'status': status.status
+                    }, status=drf_status.HTTP_200_OK)
+                else:
+                    return Response({'error': 'Payment not successful'}, status=drf_status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({'error': response.data['error']}, status=drf_status.HTTP_400_BAD_REQUEST)
+
         
         except Exception as e:
             return Response({'error': str(e)}, status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR)
