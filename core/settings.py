@@ -159,6 +159,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     'https://api.ro-ja.com',
     'https://beta.ro-ja.com',
+    'https://ro-ja.com',
     'http://localhost:3000',
 ]
 
@@ -202,7 +203,7 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-DOMAIN = 'beta.ro-ja.com'
+DOMAIN = 'ro-ja.com'
 # DOMAIN = 'localhost3000'
 
 SITE_NAME = 'RO-JA ACCOMODATION'

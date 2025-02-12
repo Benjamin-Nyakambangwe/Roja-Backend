@@ -1,9 +1,23 @@
+from django.core.mail import send_mail
+from django.db import transaction
+from api.models import Property
+from .serializers import TenantProfileLimitedSerializer
+from .models import TenantProfile
+from rest_framework import permissions, status
+import time
+import logging
+import uuid
+from rest_framework.permissions import AllowAny
+import hashlib
+from .models import Payment
+from paynow import Paynow
 from django.conf import settings
 from rest_framework.views import APIView
 # from rest_framework.response import Response
 # from rest_framework import status
 from djoser.social.views import ProviderAuthView
-from rest_framework_simplejwt.views import(TokenObtainPairView, TokenRefreshView, TokenVerifyView)
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView, TokenRefreshView, TokenVerifyView)
 from .serializers import CustomTokenObtainPairSerializer
 from .serializers import TenantRatingSerializer
 from rest_framework import generics, permissions
@@ -39,19 +53,18 @@ class CustomProviderAuthView(ProviderAuthView):
             refresh_token = response.data.get('refresh')
 
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH,
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
-                )
+            )
             response.set_cookie(
                 'refresh',
                 refresh_token,
                 max_age=settings.AUTH_COOKIE_REFRESH_MAX_AGE,
-                path=settings.AUTH_COOKIE_PATH, 
+                path=settings.AUTH_COOKIE_PATH,
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
             )
-        
-        return response
 
+        return response
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -59,25 +72,24 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)
-        
+
         if response.status_code == 200:
             access_token = response.data.get('access')
             refresh_token = response.data.get('refresh')
 
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH,
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
-                )
+            )
             response.set_cookie(
                 'refresh',
                 refresh_token,
                 max_age=settings.AUTH_COOKIE_REFRESH_MAX_AGE,
-                path=settings.AUTH_COOKIE_PATH, 
+                path=settings.AUTH_COOKIE_PATH,
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
             )
-        
+
         return response
-    
 
 
 class CustomTokenRefreshView(TokenRefreshView):
@@ -92,12 +104,11 @@ class CustomTokenRefreshView(TokenRefreshView):
         if response.status_code == 200:
             access_token = response.data.get('access')
             response.set_cookie(
-                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH, 
+                settings.AUTH_COOKIE, access_token, max_age=settings.AUTH_COOKIE_ACCESS_MAX_AGE, path=settings.AUTH_COOKIE_PATH,
                 secure=settings.AUTH_COOKIE_SECURE, httponly=settings.AUTH_COOKIE_HTTP_ONLY, samesite=settings.AUTH_COOKIE_SAMESITE
-                )
-            
-        return response
+            )
 
+        return response
 
 
 class CustomTokenVerifyView(TokenVerifyView):
@@ -108,7 +119,7 @@ class CustomTokenVerifyView(TokenVerifyView):
             request.data['token'] = access_token
 
         return super().post(request, *args, **kwargs)
-    
+
 
 class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
@@ -116,9 +127,6 @@ class LogoutView(APIView):
         response.delete_cookie(settings.AUTH_COOKIE)
         response.delete_cookie('refresh')
         return response
-    
-
-
 
 
 class LandlordProfileView(generics.RetrieveUpdateAPIView):
@@ -141,7 +149,8 @@ class LandlordProfileView(generics.RetrieveUpdateAPIView):
         instance = self.get_object()
         if instance is None:
             return Response(status=drf_status.HTTP_403_FORBIDDEN)
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -152,6 +161,7 @@ class LandlordProfileView(generics.RetrieveUpdateAPIView):
             return Response(status=drf_status.HTTP_403_FORBIDDEN)
         instance.delete()
         return Response(status=drf_status.HTTP_204_NO_CONTENT)
+
 
 class TenantProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = TenantProfileSerializer
@@ -173,7 +183,8 @@ class TenantProfileView(generics.RetrieveUpdateAPIView):
         instance = self.get_object()
         if instance is None:
             return Response(status=drf_status.HTTP_403_FORBIDDEN)
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
@@ -184,8 +195,8 @@ class TenantProfileView(generics.RetrieveUpdateAPIView):
             return Response(status=drf_status.HTTP_403_FORBIDDEN)
         instance.delete()
         return Response(status=drf_status.HTTP_204_NO_CONTENT)
-    
-    
+
+
 # class LandlordListView(generics.ListAPIView):
 #     queryset = User.objects.filter(user_type='landlord')
 #     serializer_class = CustomUserSerializer
@@ -207,12 +218,13 @@ class LandlordProfileListView(generics.ListAPIView):
     serializer_class = LandlordProfileSerializer
     permission_classes = [permissions.IsAdminUser]
 
+
 class TenantProfileListView(generics.ListAPIView):
     queryset = TenantProfile.objects.all()
     serializer_class = TenantProfileSerializer
     permission_classes = [permissions.IsAdminUser]
 
-    
+
 class getTenantProfileView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -222,18 +234,9 @@ class getTenantProfileView(APIView):
         return Response(serializer.data)
 
 
-    
-            
-        
-from paynow import Paynow
-from django.conf import settings
-from .models import Payment
-import hashlib
-from rest_framework.permissions import AllowAny
-import uuid
-import logging
-import time
 logger = logging.getLogger(__name__)
+
+
 class InitiatePaymentView(APIView):
     # permission_classes = [AllowAny]
 
@@ -273,7 +276,7 @@ class InitiatePaymentView(APIView):
 
         try:
             response = paynow.send_mobile(payment, phone, 'ecocash')
-            
+
             if response.success:
                 time.sleep(30)
                 print('success')
@@ -286,8 +289,8 @@ class InitiatePaymentView(APIView):
                         amount=amount,
                         phone=phone,
                         email=email,
-                        status = status.status,
-                        tenant = tenant_profile
+                        status=status.status,
+                        tenant=tenant_profile
                     )
                     # Update tenant profile
                     tenant_profile.subscription_plan = plan
@@ -295,30 +298,31 @@ class InitiatePaymentView(APIView):
                     tenant_profile.pricing_tier = pricing_tier
                     tenant_profile.num_properties = pricing_tier.max_properties
                     tenant_profile.save()
-                
+
                     return Response({
                         'poll_url': response.poll_url,
                         'reference': reference,
-                            'status': status.status
+                        'status': status.status
                     }, status=drf_status.HTTP_200_OK)
                 else:
                     return Response({'error': 'Payment not successful'}, status=drf_status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({'error': response.data['error']}, status=drf_status.HTTP_400_BAD_REQUEST)
 
-        
         except Exception as e:
             return Response({'error': str(e)}, status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
 class PaymentResultView(APIView):
     permission_classes = [AllowAny]  # Allow access without authentication
+
     def post(self, request):
 
         data = request.data
-        hash_string = '&'.join([f'{key}={data[key]}' for key in sorted(data.keys()) if key != 'hash'])
-        local_hash = hashlib.sha512((hash_string + settings.PAYNOW_INTEGRATION_KEY).encode('utf-8')).hexdigest()
+        hash_string = '&'.join(
+            [f'{key}={data[key]}' for key in sorted(data.keys()) if key != 'hash'])
+        local_hash = hashlib.sha512(
+            (hash_string + settings.PAYNOW_INTEGRATION_KEY).encode('utf-8')).hexdigest()
 
         if local_hash != data.get('hash'):
             return Response({'error': 'Invalid hash'}, status=drf_status.HTTP_400_BAD_REQUEST)
@@ -332,9 +336,6 @@ class PaymentResultView(APIView):
             return Response({'status': 'Updated'}, status=drf_status.HTTP_200_OK)
         else:
             return Response({'error': 'Payment not found'}, status=drf_status.HTTP_404_NOT_FOUND)
-        
-
-
 
 
 class PaymentStatusView(APIView):
@@ -355,17 +356,12 @@ class PaymentStatusView(APIView):
         if response.success:
             payment_status = response.status
             # Update your payment model if needed
-            Payment.objects.filter(poll_url=poll_url).update(status=payment_status)
+            Payment.objects.filter(poll_url=poll_url).update(
+                status=payment_status)
             return Response({'status': payment_status}, status=drf_status.HTTP_200_OK)
         else:
             return Response({'error': 'Failed to get payment status'}, status=drf_status.HTTP_400_BAD_REQUEST)
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions, status
-from .models import TenantProfile
-from .serializers import TenantProfileLimitedSerializer
-from django.shortcuts import get_object_or_404
 
 class TenantProfileLimitedView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -373,14 +369,13 @@ class TenantProfileLimitedView(APIView):
     def get(self, request):
         if request.user.user_type != 'tenant':
             return Response({"error": "Only tenants can access this information."}, status=drf_status.HTTP_403_FORBIDDEN)
-        
+
         try:
             tenant_profile = TenantProfile.objects.get(user=request.user)
             serializer = TenantProfileLimitedSerializer(tenant_profile)
             return Response(serializer.data)
         except TenantProfile.DoesNotExist:
             return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
-        
 
 
 class LandlordProfileLimitedView(APIView):
@@ -389,7 +384,7 @@ class LandlordProfileLimitedView(APIView):
     def get(self, request, pk):
         if request.user.user_type != 'tenant':
             return Response({"error": "Only tenants can access this information."}, status=drf_status.HTTP_403_FORBIDDEN)
-        
+
         try:
             landlord_profile = LandlordProfile.objects.get(id=pk)
             serializer = LandlordProfileSerializer(landlord_profile)
@@ -398,21 +393,12 @@ class LandlordProfileLimitedView(APIView):
             return Response({"error": "Landlord profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
 
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions, status
-from api.models import Property
-from .models import TenantProfile
-from django.db import transaction
-from django.core.mail import send_mail
-from django.conf import settings
-
 class AddTenantAccessView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def send_email_notification(self, subject, context):
         html_message = render_to_string('email/tenant_access.html', context)
-        
+
         email = EmailMessage(
             subject=subject,
             body=html_message,
@@ -426,7 +412,7 @@ class AddTenantAccessView(APIView):
     def post(self, request, property_id):
         if request.user.user_type != 'tenant':
             return Response({"error": "Only tenants can access properties."}, status=status.HTTP_403_FORBIDDEN)
-        
+
         try:
             property = Property.objects.get(id=property_id)
             tenant_profile = TenantProfile.objects.get(user=request.user)
@@ -446,7 +432,7 @@ class AddTenantAccessView(APIView):
                 'email_title': 'New Tenant Access Request',
                 'property': property,
                 'message': f"A new tenant, {request.user.first_name} {request.user.last_name}, has requested access to your property.",
-                'tenant_profile_url': f"https://beta.ro-ja.com/tenant-profile/{request.user.id}",
+                'tenant_profile_url': f"https://ro-ja.com/tenant-profile/{request.user.id}",
                 'recipient_email': property.owner.email
             }
             self.send_email_notification(
@@ -480,13 +466,6 @@ class AddTenantAccessView(APIView):
                 "error": "An error occurred while processing your request."
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import permissions, status
-from api.models import Property
-from .models import TenantProfile
-from django.shortcuts import get_object_or_404
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -496,18 +475,18 @@ logger = logging.getLogger(__name__)
 #     def post(self, request, property_id):
 #         if request.user.user_type != 'landlord':
 #             return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
-        
+
 #         property = get_object_or_404(Property, id=property_id, owner=request.user)
 #         tenant_id = request.data.get('tenant_id')
-        
+
 #         if not tenant_id:
 #             return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
 #         try:
 #             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
 #         except TenantProfile.DoesNotExist:
 #             return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+
 #         # Store previous tenants with access
 #         previous_tenants = list(property.tenants_with_access.all())
 
@@ -516,12 +495,12 @@ logger = logging.getLogger(__name__)
 
 #         # Set current tenant
 #         property.current_tenant = tenant_profile.user
-        
+
 #         # Clear tenants with access except for the winning tenant
 #         property.tenants_with_access.clear()
 #         property.tenants_with_access.add(tenant_profile.user)
 #         property.previous_tenants_with_access.add(previous_tenants)
-        
+
 #         property.save()
 
 #         # Send email to the winning tenant
@@ -532,7 +511,7 @@ logger = logging.getLogger(__name__)
 
 #         # Send emails to other tenants who had access
 #         self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
-        
+
 #         return Response({
 #             "message": f"Current tenant set for property {property.title}. Notifications sent.",
 #             "property_id": property.id,
@@ -571,37 +550,37 @@ logger = logging.getLogger(__name__)
 #             print(f"Failed to send email. Error: {str(e)}")
 
 
-
 class SetCurrentTenantView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, property_id):
         if request.user.user_type != 'landlord':
             return Response({"error": "Only landlords can set current tenants."}, status=drf_status.HTTP_403_FORBIDDEN)
-        
-        property = get_object_or_404(Property, id=property_id, owner=request.user)
+
+        property = get_object_or_404(
+            Property, id=property_id, owner=request.user)
         tenant_id = request.data.get('tenant_id')
-        
-        if not tenant_id: 
+
+        if not tenant_id:
             return Response({"error": "Tenant ID is required."}, status=drf_status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
             tenant_user = tenant_profile.user
         except TenantProfile.DoesNotExist:
             return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
-        
+
         # Store previous tenants with access
         previous_tenants = list(property.tenants_with_access.all())
 
         # Set current tenant
         property.current_tenant = tenant_user
-        
+
         # Clear tenants with access except for the winning tenant
         property.tenants_with_access.clear()
         property.previous_tenants_with_access.add(*previous_tenants)
         property.tenants_with_access.add(tenant_user)
-        
+
         # Create first rent payment if in-app payments are accepted
         if property.accepts_in_app_payment:
             next_month = timezone.now().date() + timezone.timedelta(days=30)
@@ -612,14 +591,15 @@ class SetCurrentTenantView(APIView):
                 due_date=next_month,
                 status='PENDING'
             )
-        
+
         property.save()
 
         # Send notifications...
         self.send_email_to_winning_tenant(tenant_user, property)
         self.send_email_to_landlord(request.user, tenant_user, property)
-        self.send_emails_to_other_tenants(previous_tenants, tenant_user, property)
-        
+        self.send_emails_to_other_tenants(
+            previous_tenants, tenant_user, property)
+
         return Response({
             "message": f"Current tenant set for property {property.title}. Notifications sent.",
             "property_id": property.id,
@@ -659,37 +639,32 @@ class SetCurrentTenantView(APIView):
             print(f"Failed to send email. Error: {str(e)}")
 
 
-
 class RevokeCurrentTenantView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, property_id):
         if request.user.user_type != 'landlord':
             return Response({"error": "Only landlords can revoke current tenants."}, status=drf_status.HTTP_403_FORBIDDEN)
-        
-        property = get_object_or_404(Property, id=property_id, owner=request.user)
+
+        property = get_object_or_404(
+            Property, id=property_id, owner=request.user)
         tenant_id = request.data.get('tenant_id')
-        
+
         if not tenant_id:
             return Response({"error": "Tenant ID is required."}, status=drf_status.HTTP_400_BAD_REQUEST)
-        
+
         try:
             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
             tenant_user = tenant_profile.user
         except TenantProfile.DoesNotExist:
             return Response({"error": "Tenant profile not found."}, status=drf_status.HTTP_404_NOT_FOUND)
-        
+
         property.current_tenant = None
         # property.tenants_with_access.remove(tenant_user)  # Change this line
         property.previous_tenants.add(tenant_user)
         property.save()
 
         return Response({"message": f"Current tenant revoked for property {property.title}."}, status=drf_status.HTTP_200_OK)
-
-
-
-
-
 
 
 class SetCurrentTenantWithLeaseDocView(APIView):
@@ -699,7 +674,7 @@ class SetCurrentTenantWithLeaseDocView(APIView):
         """Generate lease agreement PDF using template"""
         # Calculate end date (30 days from start)
         end_date = start_date + timezone.timedelta(days=30)
-        
+
         # Prepare context for template
         context = {
             'generated_date': datetime.now().strftime('%d %B, %Y'),
@@ -712,10 +687,10 @@ class SetCurrentTenantWithLeaseDocView(APIView):
             'deposit_amount': property.deposit,
             'payment_method': 'in-app payment' if property.accepts_in_app_payment else 'cash payment'
         }
-        
+
         # Render HTML template
         html_string = render_to_string('lease_agreement.html', context)
-        
+
         # Create PDF
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -726,15 +701,15 @@ class SetCurrentTenantWithLeaseDocView(APIView):
             topMargin=72,
             bottomMargin=72
         )
-        
+
         # Get styles
         styles = getSampleStyleSheet()
         elements = []
-        
+
         # Clean and process HTML content
         soup = BeautifulSoup(html_string, 'html.parser')
         text_content = soup.get_text(separator='\n', strip=True)
-        
+
         # Process each paragraph
         for paragraph in text_content.split('\n'):
             if paragraph.strip():
@@ -745,7 +720,7 @@ class SetCurrentTenantWithLeaseDocView(APIView):
                 except Exception as e:
                     print(f"Error processing paragraph: {str(e)}")
                     continue
-        
+
         # Build PDF
         doc.build(elements)
         buffer.seek(0)
@@ -756,45 +731,46 @@ class SetCurrentTenantWithLeaseDocView(APIView):
         print("Property ID:", property_id)
         print("User type:", request.user.user_type)
         print("User:", request.user.email)
-        
+
         if request.user.user_type != 'landlord':
-            return Response({"error": "Only landlords can set current tenants."}, 
-                          status=drf_status.HTTP_403_FORBIDDEN)
-        
+            return Response({"error": "Only landlords can set current tenants."},
+                            status=drf_status.HTTP_403_FORBIDDEN)
+
         try:
-            property = get_object_or_404(Property, id=property_id, owner=request.user)
+            property = get_object_or_404(
+                Property, id=property_id, owner=request.user)
             print("Found property:", property.title)
         except:
-            return Response({"error": "Property not found or not owned by user"}, 
-                          status=drf_status.HTTP_404_NOT_FOUND)
-        
+            return Response({"error": "Property not found or not owned by user"},
+                            status=drf_status.HTTP_404_NOT_FOUND)
+
         tenant_id = request.data.get('tenant_id')
         print("Tenant ID:", tenant_id)
-        
+
         if not tenant_id:
-            return Response({"error": "Tenant ID is required."}, 
-                          status=drf_status.HTTP_400_BAD_REQUEST)
-        
+            return Response({"error": "Tenant ID is required."},
+                            status=drf_status.HTTP_400_BAD_REQUEST)
+
         try:
             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
             tenant_user = tenant_profile.user
             print("Found tenant:", tenant_user.email)
             print("Next of kin email:", tenant_profile.next_of_kin_email)
-            
+
             # Store if tenant has next of kin email
             has_next_of_kin = tenant_profile.next_of_kin_email is not None
-                
+
         except TenantProfile.DoesNotExist:
-            return Response({"error": "Tenant profile not found."}, 
-                          status=drf_status.HTTP_404_NOT_FOUND)
-        
+            return Response({"error": "Tenant profile not found."},
+                            status=drf_status.HTTP_404_NOT_FOUND)
+
         # Store previous tenants
         previous_tenants = list(property.tenants_with_access.all())
 
         # Set dates
         start_date = timezone.now().date()
         end_date = start_date + timezone.timedelta(days=30)
-        
+
         # Generate lease agreement
         lease_pdf = self.generate_lease_agreement(
             property=property,
@@ -802,7 +778,7 @@ class SetCurrentTenantWithLeaseDocView(APIView):
             landlord=request.user,
             start_date=start_date
         )
-        
+
         # Create lease agreement record
         lease_agreement = LeaseAgreement.objects.create(
             tenant=tenant_user,
@@ -811,13 +787,13 @@ class SetCurrentTenantWithLeaseDocView(APIView):
             end_date=end_date,
             rent_amount=property.price
         )
-        
+
         # Update property tenants
         property.current_tenant = tenant_user
         property.tenants_with_access.clear()
         property.previous_tenants_with_access.add(*previous_tenants)
         property.tenants_with_access.add(tenant_user)
-        
+
         # Create rent payment if applicable
         if property.accepts_in_app_payment:
             RentPayment.objects.create(
@@ -827,16 +803,19 @@ class SetCurrentTenantWithLeaseDocView(APIView):
                 due_date=end_date,
                 status='PENDING'
             )
-        
+
         property.save()
 
         # Send notifications with lease agreement
         self.send_email_to_winning_tenant(tenant_user, property, lease_pdf)
-        self.send_email_to_landlord(request.user, tenant_user, property, lease_pdf)
+        self.send_email_to_landlord(
+            request.user, tenant_user, property, lease_pdf)
         if has_next_of_kin:  # Only send to next of kin if email exists
-            self.send_email_to_tenant_kin(tenant_profile.next_of_kin_email, tenant_user, property, lease_pdf)
-        self.send_emails_to_other_tenants(previous_tenants, tenant_user, property)
-        
+            self.send_email_to_tenant_kin(
+                tenant_profile.next_of_kin_email, tenant_user, property, lease_pdf)
+        self.send_emails_to_other_tenants(
+            previous_tenants, tenant_user, property)
+
         return Response({
             "message": f"Current tenant set for property {property.title}. Lease agreement sent to all parties.",
             "property_id": property.id,
@@ -857,7 +836,8 @@ Please find attached the lease agreement for your review and records.
 
 Best regards,
 ROJA ACCOMODATION Team"""
-        self.send_email_with_attachment(subject, message, [tenant.email], lease_pdf, "lease_agreement.pdf")
+        self.send_email_with_attachment(
+            subject, message, [tenant.email], lease_pdf, "lease_agreement.pdf")
 
     def send_email_to_landlord(self, landlord, tenant, property, lease_pdf):
         subject = f"Tenant Selected for {property.title}"
@@ -869,7 +849,8 @@ Please find attached the lease agreement for your records.
 
 Best regards,
 ROJA ACCOMODATION Team"""
-        self.send_email_with_attachment(subject, message, [landlord.email], lease_pdf, "lease_agreement.pdf")
+        self.send_email_with_attachment(
+            subject, message, [landlord.email], lease_pdf, "lease_agreement.pdf")
 
     def send_email_to_tenant_kin(self, kin_email, tenant, property, lease_pdf):
         subject = f"Lease Agreement Witness - {property.title}"
@@ -881,7 +862,8 @@ Please find attached the lease agreement for your review and records.
 
 Best regards,
 ROJA ACCOMODATION Team"""
-        self.send_email_with_attachment(subject, message, [kin_email], lease_pdf, "lease_agreement.pdf")
+        self.send_email_with_attachment(
+            subject, message, [kin_email], lease_pdf, "lease_agreement.pdf")
 
     def send_emails_to_other_tenants(self, previous_tenants, winning_tenant, property):
         for tenant in previous_tenants:
@@ -921,7 +903,6 @@ ROJA ACCOMODATION Team"""
             print(f"Failed to send email with attachment. Error: {str(e)}")
 
 
-
 class TenantRatingCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -947,7 +928,7 @@ class TenantRatingCreateView(APIView):
             avg_rating = TenantRating.objects.filter(
                 tenant=tenant_profile
             ).aggregate(Avg('rating'))['rating__avg']
-            
+
             tenant_profile.current_rating = round(float(avg_rating), 2)
             tenant_profile.save()
 
@@ -958,6 +939,7 @@ class TenantRatingCreateView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class TenantRatingListView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -971,7 +953,8 @@ class TenantRatingListView(APIView):
                 # Get all ratings made by the landlord
                 try:
                     landlord_profile = request.user.landlord_profile
-                    ratings = TenantRating.objects.filter(landlord=landlord_profile)
+                    ratings = TenantRating.objects.filter(
+                        landlord=landlord_profile)
                 except:
                     return Response({
                         'error': 'Only landlords can view ratings'
@@ -984,6 +967,3 @@ class TenantRatingListView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-
