@@ -74,7 +74,8 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],  # Make sure this is correct
+        # Make sure this is correct
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -148,10 +149,11 @@ EMAIL_HOST_PASSWORD = 'No-reply@roja1*'  # Your email password
 DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
 
 
-#AUTH
+# AUTH
 AUTH_USER_MODEL = 'accounts.UserAccount'
 
-CORS_ALLOW_ALL_ORIGINS = True  # For development only. Be more specific in production.
+# For development only. Be more specific in production.
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
@@ -203,7 +205,7 @@ MEDIA_URL = '/media/'
 DOMAIN = 'beta.ro-ja.com'
 # DOMAIN = 'localhost3000'
 
-SITE_NAME = 'RO-JA ACCOMODATION' 
+SITE_NAME = 'RO-JA ACCOMODATION'
 
 # Default primary key field type
 # httpsdocs.djangoproject.comen5.0refsettings#default-auto-field
@@ -217,7 +219,7 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
-#JWT
+# JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES':    (
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -235,8 +237,8 @@ SIMPLE_JWT = {
 }
 
 
-#DJOSER
-DJOSER ={
+# DJOSER
+DJOSER = {
     'LOGIN_FIELD': 'email',
     'USER_CREATE_PASSWORD_RETYPE': True,
     'SEND_ACTIVATION_EMAIL': True,
@@ -295,7 +297,6 @@ SOCIAL_AUTH_FACEBOOK_PROFILE_EXTRA_PARAMS = {
 }
 
 
-
 # PAYNOW_INTEGRATION_ID = '19317'
 # PAYNOW_INTEGRATION_KEY = '95a0ccfa-ed1a-4b46-aa63-33f4b04c0539'
 
@@ -307,7 +308,7 @@ PAYNOW_RETURN_URL = os.getenv('PAYNOW_RETURN_URL')
 # Add Channels configuration
 ASGI_APPLICATION = 'core.asgi.application'
 
-CHANNEL_LAYERS =  {
+CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
@@ -320,6 +321,6 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+TWILIO_MESSAGING_SERVICE_SID = os.getenv('TWILIO_MESSAGING_SERVICE_SID')
 
 SUPPORT_EMAIL = 'support@ro-ja.com'  # Update this with your actual support email
-  

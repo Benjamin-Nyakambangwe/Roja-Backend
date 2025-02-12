@@ -7,6 +7,7 @@ from django.db.models import Max
 
 User = get_user_model()
 
+
 class PropertyImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PropertyImage
@@ -21,6 +22,7 @@ class PropertyImageSerializer(serializers.ModelSerializer):
 #         model = Property
 #         fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'main_image', 'images']
 
+
 class CommentSerializer(serializers.ModelSerializer):
     like_count = serializers.SerializerMethodField()
     dislike_count = serializers.SerializerMethodField()
@@ -31,10 +33,10 @@ class CommentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Comment
-        fields = ['id', 'property', 'commenter', 'commenter_name', 'is_owner', 
-                 'content', 'created_at', 'updated_at', 'like_count', 
-                 'dislike_count', 'has_liked', 'has_disliked', 'parent', 
-                 'is_reply', 'replies']
+        fields = ['id', 'property', 'commenter', 'commenter_name', 'is_owner',
+                  'content', 'created_at', 'updated_at', 'like_count',
+                  'dislike_count', 'has_liked', 'has_disliked', 'parent',
+                  'is_reply', 'replies']
         read_only_fields = ['commenter', 'created_at', 'updated_at']
 
     def get_replies(self, obj):
@@ -62,7 +64,8 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        representation['commenter'] = instance.commenter.first_name + " " + instance.commenter.last_name
+        representation['commenter'] = instance.commenter.first_name + \
+            " " + instance.commenter.last_name
         return representation
 
 
@@ -70,6 +73,7 @@ class HouseTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = HouseType
         fields = ['id', 'name']
+
 
 class HouseLocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -86,20 +90,23 @@ class PropertySerializer(serializers.ModelSerializer):
         required=False
     )
     comments = CommentSerializer(many=True, read_only=True)
-    type = serializers.PrimaryKeyRelatedField(queryset=HouseType.objects.all(), required=False, write_only=True)
-    location = serializers.PrimaryKeyRelatedField(queryset=HouseLocation.objects.all(), required=False, write_only=True)
+    type = serializers.PrimaryKeyRelatedField(
+        queryset=HouseType.objects.all(), required=False, write_only=True)
+    location = serializers.PrimaryKeyRelatedField(
+        queryset=HouseLocation.objects.all(), required=False, write_only=True)
     type_detail = HouseTypeSerializer(source='type', read_only=True)
-    location_detail = HouseLocationSerializer(source='location', read_only=True)
+    location_detail = HouseLocationSerializer(
+        source='location', read_only=True)
 
     class Meta:
         model = Property
-        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit', 
-                 'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets', 
-                 'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool', 
-                 'garden', 'type', 'location', 'type_detail', 'location_detail', 
-                 'main_image', 'images', 'image_files', 'comments', 
-                 'tenants_with_access', 'current_tenant', 'accepts_in_app_payment',
-                 'accepts_cash_payment', 'proof_of_residence', 'affidavit', 'overall_rating']
+        fields = ['id', 'owner', 'title', 'description', 'address', 'price', 'deposit',
+                  'bedrooms', 'bathrooms', 'area', 'is_available', 'accepts_pets',
+                  'pet_deposit', 'accepts_smokers', 'preferred_lease_term', 'pool',
+                  'garden', 'has_solar_power', 'has_borehole', 'type', 'location', 'type_detail', 'location_detail',
+                  'main_image', 'images', 'image_files', 'comments',
+                  'tenants_with_access', 'current_tenant', 'accepts_in_app_payment',
+                  'accepts_cash_payment', 'proof_of_residence', 'affidavit', 'overall_rating']
         depth = 1
 
     def create(self, validated_data):
@@ -107,7 +114,7 @@ class PropertySerializer(serializers.ModelSerializer):
         validated_data.pop('image_files', None)
         type_id = validated_data.pop('type', None)
         location_id = validated_data.pop('location', None)
-        
+
         property = Property.objects.create(**validated_data)
 
         if type_id:
@@ -115,10 +122,8 @@ class PropertySerializer(serializers.ModelSerializer):
         if location_id:
             property.location = location_id
         property.save()
-            
+
         return property
-
-
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
@@ -130,23 +135,20 @@ class ApplicationSerializer(serializers.ModelSerializer):
         fields = ['id', 'applicant', 'property', 'status', 'application_date']
 
 
-
-
-
 class MessageSerializer(serializers.ModelSerializer):
     sender = serializers.EmailField(source='sender.email', read_only=True)
     receiver = serializers.EmailField(source='receiver.email')
 
     class Meta:
         model = Message
-        fields = ['id', 'sender', 'receiver', 'content', 'timestamp', 'is_read']
+        fields = ['id', 'sender', 'receiver',
+                  'content', 'timestamp', 'is_read']
         read_only_fields = ['sender', 'timestamp', 'is_read']
 
     def create(self, validated_data):
         receiver_email = validated_data.pop('receiver')
         receiver = User.objects.get(email=receiver_email)
         return Message.objects.create(receiver=receiver, **validated_data)
-
 
 
 class ChatSerializer(serializers.Serializer):
@@ -172,7 +174,9 @@ class LeaseAgreementSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LeaseAgreement
-        fields = ['id', 'tenant', 'property', 'start_date', 'end_date', 'rent_amount', 'is_signed']
+        fields = ['id', 'tenant', 'property', 'start_date',
+                  'end_date', 'rent_amount', 'is_signed']
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     reviewer = CustomUserSerializer(read_only=True)
@@ -181,7 +185,9 @@ class ReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ['id', 'reviewer', 'reviewed', 'property', 'rating', 'comment', 'created_at']
+        fields = ['id', 'reviewer', 'reviewed',
+                  'property', 'rating', 'comment', 'created_at']
+
 
 class RentPaymentSerializer(serializers.ModelSerializer):
     tenant = CustomUserSerializer(read_only=True)
@@ -189,10 +195,9 @@ class RentPaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RentPayment
-        fields = ['id', 'property', 'tenant', 'amount', 'due_date', 
-                 'payment_date', 'status', 'transaction_id', 'created_at']
+        fields = ['id', 'property', 'tenant', 'amount', 'due_date',
+                  'payment_date', 'status', 'transaction_id', 'created_at']
         read_only_fields = ['transaction_id', 'created_at']
-
 
 
 class LeaseDocumentPaymentSerializer(serializers.ModelSerializer):
@@ -201,8 +206,6 @@ class LeaseDocumentPaymentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LeaseDocumentPayment
-        fields = ['id', 'property', 'landlord', 'amount', 'payment_date', 'status', 'transaction_id', 'created_at']
+        fields = ['id', 'property', 'landlord', 'amount',
+                  'payment_date', 'status', 'transaction_id', 'created_at']
         read_only_fields = ['transaction_id', 'created_at']
-
-
-

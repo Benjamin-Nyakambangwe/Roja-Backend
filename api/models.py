@@ -6,36 +6,52 @@ from accounts.models import TenantProfile
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
+
 def upload_to(instance, filename):
     return filename.format(filename=filename)
 
+
 class Property(models.Model):
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='properties')
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='properties')
     title = models.CharField(max_length=200)
     description = models.TextField()
     address = models.CharField(max_length=255)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    deposit = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    deposit = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
     bedrooms = models.PositiveIntegerField()
     bathrooms = models.PositiveIntegerField()
     area = models.PositiveIntegerField(help_text="Area in square feet")
     is_available = models.BooleanField(default=True)
-    preferred_lease_term = models.IntegerField(help_text="Preferred lease term in months", blank=True, null=True)
+    preferred_lease_term = models.IntegerField(
+        help_text="Preferred lease term in months", blank=True, null=True)
     accepts_pets = models.BooleanField(default=False, blank=True, null=True)
-    pet_deposit = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
-    accepts_smokers = models.BooleanField(default=False, blank=True, null=True) 
+    pet_deposit = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True)
+    accepts_smokers = models.BooleanField(default=False, blank=True, null=True)
     pool = models.BooleanField(default=False, blank=True, null=True)
     garden = models.BooleanField(default=False, blank=True, null=True)
-    type = models.ForeignKey('HouseType', on_delete=models.CASCADE, null=True, blank=True)
-    location = models.ForeignKey('HouseLocation', on_delete=models.CASCADE, null=True, blank=True) 
-    main_image = models.ForeignKey('PropertyImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
-    tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='properties_with_access')
-    current_tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='current_tenant')
-    previous_tenants_with_access = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties_with_access')
-    previous_tenants = models.ManyToManyField(settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties')
+    has_solar_power = models.BooleanField(default=False, blank=True, null=True)
+    has_borehole = models.BooleanField(default=False, blank=True, null=True)
+    type = models.ForeignKey(
+        'HouseType', on_delete=models.CASCADE, null=True, blank=True)
+    location = models.ForeignKey(
+        'HouseLocation', on_delete=models.CASCADE, null=True, blank=True)
+    main_image = models.ForeignKey(
+        'PropertyImage', null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    tenants_with_access = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='properties_with_access')
+    current_tenant = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True, related_name='current_tenant')
+    previous_tenants_with_access = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties_with_access')
+    previous_tenants = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name='previous_properties')
     accepts_in_app_payment = models.BooleanField(default=False)
     accepts_cash_payment = models.BooleanField(default=False)
-    proof_of_residence = models.FileField(upload_to=upload_to, null=True, blank=True)
+    proof_of_residence = models.FileField(
+        upload_to=upload_to, null=True, blank=True)
     affidavit = models.FileField(upload_to=upload_to, null=True, blank=True)
     is_approved = models.BooleanField(default=False)
     overall_rating = models.FloatField(default=0, null=True, blank=True)
@@ -55,8 +71,10 @@ class Property(models.Model):
     def tenant_comments(self):
         return self.comments.filter(tenant__tenantprofile__isnull=False)
 
+
 class PropertyImage(models.Model):
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='images')
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='images')
     image = models.ImageField(upload_to=upload_to)
     order = models.PositiveIntegerField(default=0)
 
@@ -68,27 +86,28 @@ class PropertyImage(models.Model):
 
     def __str__(self):
         return f"{self.property.title} - Image {self.order}"
-    
+
 
 class HouseType(models.Model):
     name = models.CharField(max_length=100)
 
     def __str__(self):
         return self.name
-    
+
+
 class HouseLocation(models.Model):
     name = models.CharField(max_length=100, null=True, blank=True)
     city = models.CharField(max_length=100, null=True, blank=True)
-
 
     def __str__(self):
         return self.name
 
 
-
 class Application(models.Model):
-    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='applications')
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='applications')
+    applicant = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='applications')
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='applications')
     status = models.CharField(max_length=20, choices=[
         ('PENDING', 'Pending'),
         ('APPROVED', 'Approved'),
@@ -101,8 +120,10 @@ class Application(models.Model):
 
 
 class Message(models.Model):
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages')
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_messages')
     content = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
@@ -115,7 +136,8 @@ class Message(models.Model):
 
 
 class LeaseAgreement(models.Model):
-    tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='lease_agreements')
+    tenant = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='lease_agreements')
     property = models.ForeignKey(Property, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
@@ -133,10 +155,14 @@ class LeaseAgreement(models.Model):
 
 
 class Review(models.Model):
-    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_given')
-    reviewed = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_received')
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='reviews')
-    rating = models.PositiveIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    reviewer = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_given')
+    reviewed = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='reviews_received')
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -152,19 +178,24 @@ class Review(models.Model):
 
 
 class Comment(models.Model):
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='comments')
-    commenter = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='comments')
+    commenter = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     is_owner = models.BooleanField(default=False)
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    parent = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
     is_reply = models.BooleanField(default=False)
     is_rated = models.BooleanField(default=False)
     ai_rating = models.FloatField(null=True, blank=True, default=0.00)
-    
-    likes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='comment_likes', blank=True)
-    dislikes = models.ManyToManyField(settings.AUTH_USER_MODEL, related_name='comment_dislikes', blank=True)
+
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='comment_likes', blank=True)
+    dislikes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='comment_dislikes', blank=True)
 
     def __str__(self):
         return f"Comment by {self.commenter.email} on {self.property.title}"
@@ -204,14 +235,6 @@ class Comment(models.Model):
             return True
 
 
-
-
-
-
-
-
-
-
 # class Comment(models.Model):
 #     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='comments')
 #     tenant = models.ForeignKey(TenantProfile, on_delete=models.CASCADE, related_name='property_comments')
@@ -235,9 +258,6 @@ class Comment(models.Model):
 #             raise ValidationError("Only tenants can make comments on properties.")
 
 
-
-
-
 class RentPayment(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
@@ -245,12 +265,15 @@ class RentPayment(models.Model):
         ('OVERDUE', 'Overdue'),
     ]
 
-    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name='rent_payments')
-    tenant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rent_payments')
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name='rent_payments')
+    tenant = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='rent_payments')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     due_date = models.DateField()
     payment_date = models.DateField(null=True, blank=True)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='PENDING')
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default='PENDING')
     transaction_id = models.CharField(max_length=100, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -272,7 +295,8 @@ class RentPayment(models.Model):
 
 
 class PhoneVerification(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE)
     verification_code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_verified = models.BooleanField(default=False)
@@ -283,7 +307,8 @@ class PhoneVerification(models.Model):
 
 
 class LeaseDocumentPayment(models.Model):
-    landlord = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    landlord = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     property = models.ForeignKey(Property, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, default='PENDING')
@@ -301,6 +326,6 @@ class LeaseDocumentPayment(models.Model):
     #     # automatically update its status to OVERDUE before saving
     #     if self.status == 'PENDING' and self.due_date < timezone.now().date():
     #         self.status = 'OVERDUE'
-        
+
     #     # Call the parent class's save method to actually save the object
     #     super().save(*args, **kwargs)

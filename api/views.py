@@ -1,3 +1,5 @@
+from django.db.models import Q, Max, Count, Case, When, IntegerField, F
+from .serializers import ChatSerializer, MessageSerializer
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -48,25 +50,26 @@ class PropertyList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         # Get image files directly from request.FILES
         image_files = self.request.FILES.getlist('image_files')
-        
+
         if not image_files:
-            raise serializers.ValidationError({"image_files": "At least one image is required"})
-        
+            raise serializers.ValidationError(
+                {"image_files": "At least one image is required"})
+
         # Create property instance with owner
         property_instance = serializer.save(owner=self.request.user)
-        
+
         # Process each image
         for index, image_file in enumerate(image_files):
             # Add watermark to image
             watermarked_image = add_watermark(image_file)
-            
+
             # Create PropertyImage instance with watermarked image
             PropertyImage.objects.create(
                 property=property_instance,
                 image=watermarked_image,
                 order=index
             )
-        
+
         # Set main image
         property_instance.main_image = PropertyImage.objects.filter(
             property=property_instance
@@ -92,8 +95,9 @@ class PropertyList(generics.ListCreateAPIView):
             }
 
             # Render email template
-            html_message = render_to_string('email/property_approval.html', context)
-            
+            html_message = render_to_string(
+                'email/property_approval.html', context)
+
             # Send email
             send_mail(
                 subject=f'New Property Approval Required: {property_instance.title}',
@@ -103,16 +107,19 @@ class PropertyList(generics.ListCreateAPIView):
                 html_message=html_message,
                 fail_silently=False,
             )
-            print(f"Property approval email sent successfully for: {property_instance.title}")
+            print(
+                f"Property approval email sent successfully for: {property_instance.title}")
 
         except Exception as e:
             print(f"Failed to send property approval email: {str(e)}")
             # Don't raise error, just log it
             # Property creation was successful even if email fails
 
+
 class OwnPropertyList(generics.ListCreateAPIView):
     serializer_class = PropertySerializer
-    permission_classes = [permissions.IsAuthenticated]  # Changed to IsAuthenticated
+    # Changed to IsAuthenticated
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         """
@@ -126,6 +133,7 @@ class PropertyDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
 
 class PropertyListCreateView(APIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -144,16 +152,17 @@ class PropertyListCreateView(APIView):
 
     def get(self, request, format=None):
         queryset = self.get_queryset()
-        
-        show_all = request.query_params.get('show_all', 'false').lower() == 'true'
-        
+
+        show_all = request.query_params.get(
+            'show_all', 'false').lower() == 'true'
+
         if show_all:
             queryset = Property.objects.all().order_by('-id')
-        
+
         filtered_queryset = self.filter_queryset(queryset)
-        serializer = PropertySerializer(filtered_queryset, many=True, context={'request': request})
+        serializer = PropertySerializer(
+            filtered_queryset, many=True, context={'request': request})
         return Response(serializer.data)
-    
 
 
 # PropertyImage views
@@ -161,6 +170,7 @@ class PropertyImageList(generics.ListCreateAPIView):
     queryset = PropertyImage.objects.all()
     serializer_class = PropertyImageSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
 
 class PropertyImageDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = PropertyImage.objects.all()
@@ -174,22 +184,28 @@ class HouseTypeList(generics.ListCreateAPIView):
     serializer_class = HouseTypeSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+
 class HouseTypeDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = HouseType.objects.all()
     serializer_class = HouseTypeSerializer
     # permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
-#House Location Views
+# House Location Views
+
+
 class HouseLocationList(generics.ListCreateAPIView):
     queryset = HouseLocation.objects.all()
     serializer_class = HouseLocationSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
 
 class HouseLocationDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = HouseLocation.objects.all()
     serializer_class = HouseLocationSerializer
 
 # Application views
+
+
 class ApplicationList(generics.ListCreateAPIView):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
@@ -198,15 +214,17 @@ class ApplicationList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(applicant=self.request.user)
 
+
 class ApplicationDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
 # Message views
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
 
 class MessageListCreateView(generics.ListCreateAPIView):
     serializer_class = MessageSerializer
@@ -235,6 +253,7 @@ class MessageListCreateView(generics.ListCreateAPIView):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+
 class MessageDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
@@ -244,12 +263,15 @@ class MessageDetailView(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         return Message.objects.filter(sender=user) | Message.objects.filter(receiver=user)
 
+
 class UnreadMessageCountView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        unread_count = Message.objects.filter(receiver=request.user, is_read=False).count()
+        unread_count = Message.objects.filter(
+            receiver=request.user, is_read=False).count()
         return Response({"unread_count": unread_count})
+
 
 class MarkMessageAsReadView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -264,6 +286,8 @@ class MarkMessageAsReadView(generics.GenericAPIView):
             return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
 
 # Review views
+
+
 class ReviewList(generics.ListCreateAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
@@ -272,22 +296,22 @@ class ReviewList(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         property_id = self.request.data.get('property')
         reviewed_id = self.request.data.get('reviewed')
-        
+
         if not property_id:
             raise serializers.ValidationError("Property ID is required")
         if not reviewed_id:
             raise serializers.ValidationError("Reviewed user ID is required")
-        
+
         try:
             property_instance = Property.objects.get(id=property_id)
         except Property.DoesNotExist:
             raise serializers.ValidationError("Invalid Property ID")
-        
+
         try:
             reviewed_user = get_user_model().objects.get(id=reviewed_id)
         except get_user_model().DoesNotExist:
             raise serializers.ValidationError("Invalid Reviewed User ID")
-        
+
         serializer.save(
             reviewer=self.request.user,
             property=property_instance,
@@ -300,12 +324,15 @@ class ReviewList(generics.ListCreateAPIView):
         print("Headers:", request.headers)
         return super().create(request, *args, **kwargs)
 
+
 class ReviewDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Review.objects.all()
     serializer_class = ReviewSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
 # Comment views
+
+
 class CommentList(generics.ListCreateAPIView):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
@@ -323,6 +350,7 @@ class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     def perform_update(self, serializer):
         serializer.save(commenter=self.request.user)
 
+
 class PropertyCommentList(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -336,11 +364,9 @@ class PropertyCommentList(generics.ListCreateAPIView):
         property = Property.objects.get(id=property_id)
         serializer.save(commenter=self.request.user, property=property)
 
-from django.db.models import Q, Max, Count, Case, When, IntegerField, F
-from django.contrib.auth import get_user_model
-from .serializers import ChatSerializer, MessageSerializer
 
 User = get_user_model()
+
 
 class ChatListView(generics.ListAPIView):
     serializer_class = ChatSerializer
@@ -357,7 +383,8 @@ class ChatListView(generics.ListAPIView):
                 default=F('sender'),
                 output_field=IntegerField(),
             ),
-            unread_count=Count(Case(When(receiver=user, is_read=False, then=1)))
+            unread_count=Count(
+                Case(When(receiver=user, is_read=False, then=1)))
         ).order_by('-last_message_id')
 
         return [
@@ -368,6 +395,7 @@ class ChatListView(generics.ListAPIView):
             }
             for chat in chats
         ]
+
 
 class ChatDetailView(generics.ListAPIView):
     serializer_class = MessageSerializer
@@ -383,8 +411,10 @@ class ChatDetailView(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        queryset.filter(receiver=request.user, is_read=False).update(is_read=True)
+        queryset.filter(receiver=request.user,
+                        is_read=False).update(is_read=True)
         return super().list(request, *args, **kwargs)
+
 
 class AvailableChatsView(generics.ListAPIView):
     serializer_class = ChatSerializer
@@ -401,7 +431,8 @@ class AvailableChatsView(generics.ListAPIView):
                 default=F('sender'),
                 output_field=IntegerField(),
             ),
-            unread_count=Count(Case(When(receiver=user, is_read=False, then=1))),
+            unread_count=Count(
+                Case(When(receiver=user, is_read=False, then=1))),
             total_messages=Count('id', distinct=True)  # Use distinct=True here
         ).order_by('-last_message_id')
 
@@ -425,11 +456,13 @@ class AvailableChatsView(generics.ListAPIView):
                 (Q(receiver=user) & Q(sender_id=other_user_id))
             ).order_by('timestamp')
 
-            chat_dict[other_user_id]['messages'].update(messages)  # Use update instead of extend
+            chat_dict[other_user_id]['messages'].update(
+                messages)  # Use update instead of extend
 
         # Convert sets back to sorted lists
         for chat in chat_dict.values():
-            chat['messages'] = sorted(chat['messages'], key=lambda x: x.timestamp)
+            chat['messages'] = sorted(
+                chat['messages'], key=lambda x: x.timestamp)
 
         return list(chat_dict.values())
 
@@ -438,6 +471,7 @@ class AvailableChatsView(generics.ListAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+
 class PropertyReviewList(generics.ListAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [AllowAny]
@@ -445,6 +479,7 @@ class PropertyReviewList(generics.ListAPIView):
     def get_queryset(self):
         property_id = self.kwargs['property_id']
         return Review.objects.filter(property_id=property_id)
+
 
 class UserReviewList(generics.ListAPIView):
     serializer_class = ReviewSerializer
@@ -460,19 +495,19 @@ class UserReviewList(generics.ListAPIView):
 #     def post(self, request, property_id):
 #         if request.user.user_type != 'landlord':
 #             return Response({"error": "Only landlords can set current tenants."}, status=status.HTTP_403_FORBIDDEN)
-        
+
 #         from django.shortcuts import get_object_or_404
 #         property = get_object_or_404(Property, id=property_id, owner=request.user)
 #         tenant_id = request.data.get('tenant_id')
-        
+
 #         if not tenant_id:
 #             return Response({"error": "Tenant ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-        
+
 #         try:
 #             tenant_profile = TenantProfile.objects.get(user__id=tenant_id)
 #         except TenantProfile.DoesNotExist:
 #             return Response({"error": "Tenant profile not found."}, status=status.HTTP_404_NOT_FOUND)
-        
+
 #         # Store previous tenants with access
 #         previous_tenants = list(property.tenants_with_access.all())
 
@@ -482,16 +517,16 @@ class UserReviewList(generics.ListAPIView):
 
 #         # Set current tenant
 #         property.current_tenant = tenant_profile.user
-        
+
 #         # Clear tenants with access except for the winning tenant
 #         property.tenants_with_access.clear()
 #         property.tenants_with_access.add(tenant_profile.user)
-        
+
 #         # Add previous tenants to previous_tenants_with_access
 #         # for tenant in previous_tenants:
 #         #     if tenant != tenant_profile.user:
 #         #         property.previous_tenants_with_access.add(tenant)
-        
+
 #         property.save()
 
 #         # Send email to the winning tenant
@@ -502,7 +537,7 @@ class UserReviewList(generics.ListAPIView):
 
 #         # Send emails to other tenants who had access
 #         self.send_emails_to_other_tenants(previous_tenants, tenant_profile.user, property)
-        
+
 #         return Response({
 #             "message": f"Current tenant set for property {property.title}. Notifications sent.",
 #             "property_id": property.id,
@@ -512,6 +547,7 @@ class UserReviewList(generics.ListAPIView):
 
 #     # ... (keep the email sending methods as they were)
 
+
 class CurrentUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -519,17 +555,20 @@ class CurrentUserView(APIView):
         serializer = CustomUserSerializer(request.user)
         return Response(serializer.data)
 
+
 class CommentLikeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):
         try:
-            print(f"Attempting to like comment {pk} by user {request.user.email}")
+            print(
+                f"Attempting to like comment {pk} by user {request.user.email}")
             comment = Comment.objects.get(pk=pk)
             print(f"Found comment: {comment}")
             print(f"Current likes: {comment.get_like_count()}")
             liked = comment.toggle_like(request.user)
-            print(f"After toggle - liked: {liked}, new count: {comment.get_like_count()}")
+            print(
+                f"After toggle - liked: {liked}, new count: {comment.get_like_count()}")
             return Response({
                 'liked': liked,
                 'like_count': comment.get_like_count(),
@@ -539,15 +578,16 @@ class CommentLikeView(APIView):
             })
         except Comment.DoesNotExist:
             return Response(
-                {'error': 'Comment not found'}, 
+                {'error': 'Comment not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             print(f"Error in like view: {str(e)}")
             return Response(
-                {'error': str(e)}, 
+                {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class CommentDislikeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -563,9 +603,10 @@ class CommentDislikeView(APIView):
             })
         except Comment.DoesNotExist:
             return Response(
-                {'error': 'Comment not found'}, 
+                {'error': 'Comment not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
 
 class RentPaymentListView(generics.ListCreateAPIView):
     serializer_class = RentPaymentSerializer
@@ -579,15 +620,17 @@ class RentPaymentListView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         property_id = self.request.data.get('property')
         property_instance = Property.objects.get(id=property_id)
-        
+
         if property_instance.current_tenant != self.request.user:
-            raise serializers.ValidationError("Only current tenant can create rent payments")
-        
+            raise serializers.ValidationError(
+                "Only current tenant can create rent payments")
+
         serializer.save(
             tenant=self.request.user,
             property=property_instance,
             amount=property_instance.price
         )
+
 
 class PropertyRentPaymentsView(generics.ListAPIView):
     serializer_class = RentPaymentSerializer
@@ -596,29 +639,31 @@ class PropertyRentPaymentsView(generics.ListAPIView):
     def get_queryset(self):
         property_id = self.kwargs['property_id']
         property = Property.objects.get(id=property_id)
-        
-        if not (self.request.user == property.owner or 
+
+        if not (self.request.user == property.owner or
                 self.request.user == property.current_tenant):
             return RentPayment.objects.none()
-        
+
         return RentPayment.objects.filter(property_id=property_id)
+
 
 class ProcessRentPaymentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, payment_id):
         try:
-            payment = RentPayment.objects.get(id=payment_id, tenant=request.user)
+            payment = RentPayment.objects.get(
+                id=payment_id, tenant=request.user)
             if payment.status != 'PENDING':
                 return Response(
-                    {"error": "Payment is not in pending status"}, 
+                    {"error": "Payment is not in pending status"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
             # Get payment details from request
             email = request.data.get('email')
             phone = request.data.get('phone')
-            
+
             if not email or not phone:
                 return Response({
                     'error': 'Email and phone number are required'
@@ -640,11 +685,12 @@ class ProcessRentPaymentView(APIView):
 
             try:
                 response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
-                
+
                 if response.success:
                     time.sleep(30)  # Wait for payment processing
-                    status_response = paynow.check_transaction_status(response.poll_url)
-                    
+                    status_response = paynow.check_transaction_status(
+                        response.poll_url)
+
                     if status_response.status == 'paid':
                         # Update rent payment
                         payment.status = 'PAID'
@@ -653,7 +699,8 @@ class ProcessRentPaymentView(APIView):
                         payment.save()
 
                         # Create next month's payment
-                        next_due_date = payment.due_date + timezone.timedelta(days=30)
+                        next_due_date = payment.due_date + \
+                            timezone.timedelta(days=30)
                         RentPayment.objects.create(
                             property=payment.property,
                             tenant=payment.tenant,
@@ -678,7 +725,7 @@ class ProcessRentPaymentView(APIView):
                     return Response({
                         'error': response.data['error']
                     }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             except Exception as e:
                 return Response({
                     'error': str(e)
@@ -686,9 +733,10 @@ class ProcessRentPaymentView(APIView):
 
         except RentPayment.DoesNotExist:
             return Response(
-                {'error': 'Payment not found'}, 
+                {'error': 'Payment not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
 
 class TenantAccessibleProperties(generics.ListAPIView):
     serializer_class = PropertySerializer
@@ -702,15 +750,16 @@ class TenantAccessibleProperties(generics.ListAPIView):
         # 3. The user is in previous_tenants_with_access
         """
         user = self.request.user
-        
+
         if user.user_type != 'tenant':
             return Property.objects.none()
-            
+
         return Property.objects.filter(
             Q(tenants_with_access=user) |
-            Q(current_tenant=user) 
+            Q(current_tenant=user)
             # Q(previous_tenants_with_access=user)
         ).distinct()
+
 
 class TenantCurrentProperty(generics.ListAPIView):
     serializer_class = PropertySerializer
@@ -721,13 +770,14 @@ class TenantCurrentProperty(generics.ListAPIView):
         Return the current property of the tenant
         """
         user = self.request.user
-        
+
         if user.user_type != 'tenant':
             return Property.objects.none()
-            
+
         return Property.objects.filter(
             current_tenant=user
         ).distinct()
+
 
 class GeneratePropertyDescriptionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -741,15 +791,15 @@ class GeneratePropertyDescriptionView(APIView):
             area = request.data.get('area', '')
             property_type = request.data.get('type', '')
             location = request.data.get('location', '')
-            
+
             # Log incoming data
             print(f"Received data: {request.data}")
-            
+
             # Convert string 'on' to boolean for checkboxes
             accepts_pets = request.data.get('accepts_pets') == 'on'
             pool = request.data.get('pool') == 'on'
             garden = request.data.get('garden') == 'on'
-            
+
             features = []
             if accepts_pets:
                 features.append('Pet-friendly')
@@ -774,13 +824,14 @@ class GeneratePropertyDescriptionView(APIView):
                 return Response({"error": f"Location with ID {location} not found"}, status=status.HTTP_404_NOT_FOUND)
 
             # Log processed data
-            print(f"Processed data - Type: {property_type}, Location: {location}, Features: {features}")
+            print(
+                f"Processed data - Type: {property_type}, Location: {location}, Features: {features}")
 
             # Check if OpenAI API key is configured
             if not settings.OPENAI_API_KEY:
                 print("OpenAI API key not configured")
                 return Response(
-                    {"error": "OpenAI API key not configured"}, 
+                    {"error": "OpenAI API key not configured"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
 
@@ -807,7 +858,8 @@ Start by describing the property type and include specifics like the number of b
                 response = client.chat.completions.create(
                     model="gpt-3.5-turbo",
                     messages=[
-                        {"role": "system", "content": "You are a professional real estate copywriter."},
+                        {"role": "system",
+                            "content": "You are a professional real estate copywriter."},
                         {"role": "user", "content": prompt}
                     ],
                     max_tokens=500,
@@ -825,19 +877,19 @@ Start by describing the property type and include specifics like the number of b
             except openai.APIError as e:
                 print(f"OpenAI API Error: {str(e)}")
                 return Response(
-                    {"error": f"OpenAI API Error: {str(e)}"}, 
+                    {"error": f"OpenAI API Error: {str(e)}"},
                     status=status.HTTP_503_SERVICE_UNAVAILABLE
                 )
             except openai.RateLimitError as e:
                 print(f"Rate limit exceeded: {str(e)}")
                 return Response(
-                    {"error": "Rate limit exceeded. Please try again later."}, 
+                    {"error": "Rate limit exceeded. Please try again later."},
                     status=status.HTTP_429_TOO_MANY_REQUESTS
                 )
             except openai.AuthenticationError as e:
                 print(f"Authentication error: {str(e)}")
                 return Response(
-                    {"error": "Invalid API key"}, 
+                    {"error": "Invalid API key"},
                     status=status.HTTP_401_UNAUTHORIZED
                 )
 
@@ -849,9 +901,10 @@ Start by describing the property type and include specifics like the number of b
                 {
                     "error": "An unexpected error occurred",
                     "details": str(e)
-                }, 
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
 
 class SendSMSView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -867,7 +920,8 @@ class SendSMSView(APIView):
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Initialize Twilio client
-            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            client = Client(settings.TWILIO_ACCOUNT_SID,
+                            settings.TWILIO_AUTH_TOKEN)
 
             # Send message
             message = client.messages.create(
@@ -885,8 +939,6 @@ class SendSMSView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-
 
 
 class SendVerificationCodeView(APIView):
@@ -928,11 +980,12 @@ class SendVerificationCodeView(APIView):
             )
 
             # Initialize Twilio client
-            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            client = Client(settings.TWILIO_ACCOUNT_SID,
+                            settings.TWILIO_AUTH_TOKEN)
 
             # Send verification code
             message = client.messages.create(
-                messaging_service_sid='MG9924fb70a35727bb3f7bd5da7af55df1',
+                messaging_service_sid=settings.TWILIO_MESSAGING_SERVICE_SID,
                 body=f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes.",
                 from_=settings.TWILIO_PHONE_NUMBER,
                 to=profile.phone
@@ -948,6 +1001,7 @@ class SendVerificationCodeView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class VerifyPhoneCodeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -1008,6 +1062,7 @@ class VerifyPhoneCodeView(APIView):
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class CommentReplyView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1015,11 +1070,11 @@ class CommentReplyView(APIView):
         try:
             # Get the parent comment
             parent_comment = Comment.objects.get(id=comment_id)
-            
+
             # Don't allow replies to replies
             if parent_comment.is_reply:
                 return Response(
-                    {"error": "Cannot reply to a reply"}, 
+                    {"error": "Cannot reply to a reply"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -1027,7 +1082,7 @@ class CommentReplyView(APIView):
             content = request.data.get('content')
             if not content:
                 return Response(
-                    {"error": "Content is required"}, 
+                    {"error": "Content is required"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -1047,14 +1102,15 @@ class CommentReplyView(APIView):
 
         except Comment.DoesNotExist:
             return Response(
-                {"error": "Comment not found"}, 
+                {"error": "Comment not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {"error": str(e)}, 
+                {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
 
 class ApprovePropertyView(APIView):
     permission_classes = [permissions.AllowAny]  # Allow any user to access
@@ -1063,7 +1119,7 @@ class ApprovePropertyView(APIView):
         try:
             # Get property
             property = Property.objects.get(id=property_id)
-            
+
             # Update property status
             property.is_approved = True
             property.save()
@@ -1076,7 +1132,7 @@ Your property listing "{property.title}" has been approved and is now visible on
 
 Best regards,
 ROJA ACCOMODATION Team"""
-            
+
             send_mail(
                 subject=subject,
                 message=message,
@@ -1092,14 +1148,15 @@ ROJA ACCOMODATION Team"""
 
         except Property.DoesNotExist:
             return Response(
-                {"error": "Property not found"}, 
+                {"error": "Property not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {"error": str(e)}, 
+                {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
 
 class DisapprovePropertyView(APIView):
     permission_classes = [permissions.AllowAny]  # Allow any user to access
@@ -1108,10 +1165,10 @@ class DisapprovePropertyView(APIView):
         try:
             # Get property
             property = Property.objects.get(id=property_id)
-            
+
             # Get reason for disapproval
             reason = request.data.get('reason', 'No reason provided')
-            
+
             # Update property status
             property.is_approved = False
             property.save()
@@ -1128,7 +1185,7 @@ Please make the necessary adjustments and submit again.
 
 Best regards,
 ROJA ACCOMODATION Team"""
-            
+
             send_mail(
                 subject=subject,
                 message=message,
@@ -1145,17 +1202,19 @@ ROJA ACCOMODATION Team"""
 
         except Property.DoesNotExist:
             return Response(
-                {"error": "Property not found"}, 
+                {"error": "Property not found"},
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             return Response(
-                {"error": str(e)}, 
+                {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+
 class ContactFormView(APIView):
-    permission_classes = [permissions.AllowAny]  # Allow anyone to contact support
+    # Allow anyone to contact support
+    permission_classes = [permissions.AllowAny]
 
     def post(self, request):
         try:
@@ -1186,7 +1245,8 @@ class ContactFormView(APIView):
                 body=html_message,
                 from_email=settings.EMAIL_HOST_USER,
                 to=['support@ro-ja.com', 'benjaminnyakambangwe@gmail.com'],
-                reply_to=[email]  # Allow support to reply directly to the sender
+                # Allow support to reply directly to the sender
+                reply_to=[email]
             )
             email_message.content_subtype = "html"  # Main content is now HTML
             email_message.send()
@@ -1201,6 +1261,7 @@ class ContactFormView(APIView):
                 'error': 'Failed to send message. Please try again later.'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class UpdateLandlordRatingsView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -1211,41 +1272,41 @@ class UpdateLandlordRatingsView(APIView):
             'is_phone_verified': 1.0,  # Phone verification is most important
             'is_verified': 0.8,        # General verification
             'is_profile_complete': 0.8,  # Profile completion status
-            
+
             # Identity verification (high weights)
             'id_number': 0.7,
             'id_image': 0.7,
             'proof_of_residence': 0.7,
-            
+
             # Contact information (medium-high weights)
             'phone': 0.6,
             'alternate_phone': 0.4,
             'emergency_contact_name': 0.5,
             'emergency_contact_phone': 0.5,
-            
+
             # Personal information (medium weights)
             'profile_image': 0.5,
             'date_of_birth': 0.4,
             'marital_status': 0.3,
-            
+
             # Additional information (lower weights)
             'additional_notes': 0.2
         }
-        
+
         completeness_score = 0
         max_score = sum(fields_to_check.values())
-        
+
         for field, weight in fields_to_check.items():
             field_value = getattr(profile, field, None)
             if field_value not in [None, '', False]:  # Check for empty values
                 completeness_score += weight
-        
+
         # Convert to percentage
         completeness_percentage = (completeness_score / max_score) * 100
-        
+
         # Calculate bonus rating (up to 1.0 extra points for a fully complete profile)
         bonus_rating = (completeness_percentage / 100) * 1.0
-        
+
         return completeness_percentage, bonus_rating
 
     def post(self, request):
@@ -1263,9 +1324,11 @@ class UpdateLandlordRatingsView(APIView):
 
                     # Calculate property reviews rating
                     for property in properties:
-                        property_reviews = Review.objects.filter(property=property)
+                        property_reviews = Review.objects.filter(
+                            property=property)
                         if property_reviews.exists():
-                            total_rating += sum(review.rating for review in property_reviews)
+                            total_rating += sum(
+                                review.rating for review in property_reviews)
                             total_reviews += property_reviews.count()
 
                     # Calculate base rating from reviews
@@ -1275,15 +1338,18 @@ class UpdateLandlordRatingsView(APIView):
 
                     # Calculate profile completeness and bonus
                     landlord_profile = landlord.landlord_profile
-                    completeness_percentage, profile_bonus = self.calculate_profile_completeness(landlord_profile)
+                    completeness_percentage, profile_bonus = self.calculate_profile_completeness(
+                        landlord_profile)
 
                     # Calculate final rating (base rating + profile completeness bonus)
                     final_rating = base_rating + profile_bonus
-                    final_rating = min(5.0, round(final_rating, 1))  # Cap at 5.0 and round to 1 decimal
+                    # Cap at 5.0 and round to 1 decimal
+                    final_rating = min(5.0, round(final_rating, 1))
 
                     # Update profile
                     landlord_profile.current_rating = final_rating
-                    landlord_profile.profile_completeness = round(completeness_percentage, 1)
+                    landlord_profile.profile_completeness = round(
+                        completeness_percentage, 1)
                     landlord_profile.save()
                     updated_count += 1
 
@@ -1299,7 +1365,8 @@ class UpdateLandlordRatingsView(APIView):
                     })
 
                 except Exception as e:
-                    print(f"Error updating landlord {landlord.email}: {str(e)}")
+                    print(
+                        f"Error updating landlord {landlord.email}: {str(e)}")
 
             return Response({
                 "message": f"Successfully updated {updated_count} landlord ratings",
@@ -1322,7 +1389,8 @@ class UpdateLandlordRatingsView(APIView):
                 try:
                     profile = landlord.landlord_profile
                     properties = Property.objects.filter(owner=landlord)
-                    completeness_percentage, _ = self.calculate_profile_completeness(profile)
+                    completeness_percentage, _ = self.calculate_profile_completeness(
+                        profile)
 
                     ratings_data.append({
                         "landlord_name": f"{landlord.first_name} {landlord.last_name}",
@@ -1334,7 +1402,8 @@ class UpdateLandlordRatingsView(APIView):
                     })
 
                 except Exception as e:
-                    print(f"Error getting data for landlord {landlord.email}: {str(e)}")
+                    print(
+                        f"Error getting data for landlord {landlord.email}: {str(e)}")
 
             return Response(ratings_data, status=status.HTTP_200_OK)
 
@@ -1343,6 +1412,7 @@ class UpdateLandlordRatingsView(APIView):
                 "error": f"An error occurred: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class AnalyzeCommentSentimentsView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -1350,7 +1420,7 @@ class AnalyzeCommentSentimentsView(APIView):
         """Use OpenAI to analyze comment sentiment and return a rating"""
         try:
             client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)
-            
+
             messages = [
                 {"role": "system", "content": "You are a sentiment analysis expert. Rate the following property comment on a scale of 1 to 5, where 1 is very negative and 5 is very positive. Only respond with a single number."},
                 {"role": "user", "content": comment_text}
@@ -1378,7 +1448,7 @@ class AnalyzeCommentSentimentsView(APIView):
         try:
             # Get unrated comments
             unrated_comments = Comment.objects.filter(is_rated=False)
-            
+
             if not unrated_comments.exists():
                 return Response({
                     "message": "No unrated comments found"
@@ -1389,7 +1459,7 @@ class AnalyzeCommentSentimentsView(APIView):
                 try:
                     # Get sentiment rating
                     sentiment_rating = self.analyze_sentiment(comment.content)
-                    
+
                     if sentiment_rating:
                         # Update comment with the AI-generated rating
                         comment.ai_rating = sentiment_rating
@@ -1442,6 +1512,7 @@ class AnalyzeCommentSentimentsView(APIView):
                 "error": f"An error occurred: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class UpdatePropertyRatingsView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -1458,9 +1529,10 @@ class UpdatePropertyRatingsView(APIView):
             reviews = Review.objects.filter(property=property)
             review_count = reviews.count()
             avg_review_rating = 0.0
-            
+
             if review_count > 0:
-                review_ratings = sum(self.to_float(review.rating) for review in reviews)
+                review_ratings = sum(self.to_float(review.rating)
+                                     for review in reviews)
                 avg_review_rating = review_ratings / review_count
 
             # Get all AI-rated comments
@@ -1471,9 +1543,10 @@ class UpdatePropertyRatingsView(APIView):
             )
             comment_count = comments.count()
             avg_comment_rating = 0.0
-            
+
             if comment_count > 0:
-                comment_ratings = sum(self.to_float(comment.ai_rating) for comment in comments)
+                comment_ratings = sum(self.to_float(comment.ai_rating)
+                                      for comment in comments)
                 avg_comment_rating = comment_ratings / comment_count
 
             # Get landlord rating
@@ -1481,7 +1554,8 @@ class UpdatePropertyRatingsView(APIView):
             try:
                 landlord_profile = property.owner.landlord_profile
                 if landlord_profile and landlord_profile.current_rating:
-                    landlord_rating = self.to_float(landlord_profile.current_rating)
+                    landlord_rating = self.to_float(
+                        landlord_profile.current_rating)
             except Exception as e:
                 print(f"Error getting landlord rating: {str(e)}")
 
@@ -1504,11 +1578,11 @@ class UpdatePropertyRatingsView(APIView):
             if has_reviews:
                 adjusted_weights['review'] = base_weights['review']
                 total_base += base_weights['review']
-            
+
             if has_comments:
                 adjusted_weights['comment'] = base_weights['comment']
                 total_base += base_weights['comment']
-            
+
             if has_landlord_rating:
                 # Only count landlord rating if there's at least one other component
                 if has_reviews or has_comments:
@@ -1516,7 +1590,8 @@ class UpdatePropertyRatingsView(APIView):
                     total_base += base_weights['landlord']
                 else:
                     # If only landlord rating exists, cap its weight
-                    adjusted_weights['landlord'] = 0.3  # Cap at 30% if it's the only component
+                    # Cap at 30% if it's the only component
+                    adjusted_weights['landlord'] = 0.3
                     total_base = 0.3
 
             # Normalize weights if necessary
@@ -1527,11 +1602,14 @@ class UpdatePropertyRatingsView(APIView):
             # Calculate weighted average
             weighted_sum = 0.0
             if has_reviews:
-                weighted_sum += float(avg_review_rating) * adjusted_weights['review']
+                weighted_sum += float(avg_review_rating) * \
+                    adjusted_weights['review']
             if has_comments:
-                weighted_sum += float(avg_comment_rating) * adjusted_weights['comment']
+                weighted_sum += float(avg_comment_rating) * \
+                    adjusted_weights['comment']
             if has_landlord_rating:
-                weighted_sum += float(landlord_rating) * adjusted_weights['landlord']
+                weighted_sum += float(landlord_rating) * \
+                    adjusted_weights['landlord']
 
             # Calculate final rating
             overall_rating = weighted_sum if total_base > 0 else 0.0
@@ -1552,7 +1630,8 @@ class UpdatePropertyRatingsView(APIView):
             }
 
         except Exception as e:
-            print(f"Error calculating rating for property {property.id}: {str(e)}")
+            print(
+                f"Error calculating rating for property {property.id}: {str(e)}")
             return None
 
     def post(self, request):
@@ -1565,7 +1644,7 @@ class UpdatePropertyRatingsView(APIView):
             for property in properties:
                 try:
                     rating_data = self.calculate_property_rating(property)
-                    
+
                     if rating_data:
                         # Update property rating
                         property.overall_rating = rating_data['overall_rating']
@@ -1620,7 +1699,8 @@ class UpdatePropertyRatingsView(APIView):
                         })
 
                 except Exception as e:
-                    print(f"Error getting data for property {property.id}: {str(e)}")
+                    print(
+                        f"Error getting data for property {property.id}: {str(e)}")
 
             return Response(ratings_data, status=status.HTTP_200_OK)
 
@@ -1628,7 +1708,6 @@ class UpdatePropertyRatingsView(APIView):
             return Response({
                 "error": f"An error occurred: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class ProcessLeaseDocumentPaymentView(APIView):
@@ -1641,7 +1720,7 @@ class ProcessLeaseDocumentPaymentView(APIView):
             phone = request.data.get('phone')
             propertyId = request.data.get('property_id')
             amount = 0.02  # Fixed amount for lease document payment - specify as float
-            
+
             print("Request data:", request.data)
             print("Property ID:", propertyId)
             print("Email:", email)
@@ -1651,7 +1730,7 @@ class ProcessLeaseDocumentPaymentView(APIView):
                 return Response({
                     'error': 'Email, phone number and propertyId required'
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
+
             try:
                 property = Property.objects.get(id=propertyId)
             except Property.DoesNotExist:
@@ -1690,15 +1769,16 @@ class ProcessLeaseDocumentPaymentView(APIView):
             response = paynow.send_mobile(paynow_payment, phone, 'ecocash')
             print("TRACK 3")
             print("Paynow response:", response.__dict__)
-            
+
             if response.success:
                 print("TRACK 4")
                 time.sleep(30)  # Wait for payment processing
-                status_response = paynow.check_transaction_status(response.poll_url)
+                status_response = paynow.check_transaction_status(
+                    response.poll_url)
                 print("TRACK 5")
                 print("Status response:", status_response.__dict__)
                 print(status_response.status)
-                
+
                 if status_response.status == 'paid':
                     print("TRACK 6")
                     payment.status = 'PAID'
@@ -1710,7 +1790,7 @@ class ProcessLeaseDocumentPaymentView(APIView):
                     payment.save()
                     print("TRACK 10")
                     return Response({
-                        
+
                         "message": "Payment processed successfully",
                         # "payment": LeaseDocumentPaymentSerializer(payment).data,
                         "poll_url": response.poll_url,
@@ -1721,26 +1801,25 @@ class ProcessLeaseDocumentPaymentView(APIView):
                 else:
                     print("TRACK 12")
                     return Response({
-                       
+
                         "error": "Payment not completed",
                         "status": status_response.status
                     }, status=status.HTTP_400_BAD_REQUEST)
                     print("TRACK 13")
             else:
                 print("TRACK 14")
-                error_message = response.data.get('error') if hasattr(response, 'data') else 'Payment initialization failed'
+                error_message = response.data.get('error') if hasattr(
+                    response, 'data') else 'Payment initialization failed'
                 print("TRACK 15")
                 return Response({
-                    
+
                     'error': error_message
                 }, status=status.HTTP_400_BAD_REQUEST)
-                
-        
 
         except Exception as e:
             print("TRACK 20")
             print("General error:", str(e))
             return Response({
-                
+
                 'error': f'An error occurred: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
