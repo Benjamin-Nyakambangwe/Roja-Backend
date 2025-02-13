@@ -85,28 +85,61 @@ class PropertyList(generics.ListCreateAPIView):
             approve_url = f"{domain}/api/properties/{property_instance.id}/approve/"
             disapprove_url = f"{domain}/api/properties/{property_instance.id}/disapprove/"
 
-            # Prepare email context with full image URLs
+            # Get owner's profile
+            owner_profile = self.request.user.landlord_profile
+
+            # Prepare email attachments with proper MIME types
+            attachments = []
+            if property_instance.affidavit:
+                file_name = property_instance.affidavit.name.split(
+                    '/')[-1]  # Get original filename
+                content_type = self._get_content_type(file_name)
+                attachments.append((
+                    file_name,
+                    property_instance.affidavit.read(),
+                    content_type
+                ))
+
+            if property_instance.proof_of_residence:
+                file_name = property_instance.proof_of_residence.name.split(
+                    '/')[-1]
+                content_type = self._get_content_type(file_name)
+                attachments.append((
+                    file_name,
+                    property_instance.proof_of_residence.read(),
+                    content_type
+                ))
+
+            # Prepare email context
             context = {
                 'property': property_instance,
                 'approve_url': approve_url,
                 'disapprove_url': disapprove_url,
                 'site_name': 'ROJA ACCOMODATION',
-                'domain': domain
+                'domain': domain,
+                'owner': self.request.user,
+                'owner_profile': owner_profile,
             }
 
             # Render email template
             html_message = render_to_string(
                 'email/property_approval.html', context)
 
-            # Send email
-            send_mail(
+            # Create email message
+            email = EmailMessage(
                 subject=f'New Property Approval Required: {property_instance.title}',
-                message='Please approve or disapprove the new property listing.',
+                body=html_message,
                 from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[settings.SUPPORT_EMAIL],
-                html_message=html_message,
-                fail_silently=False,
+                to=[settings.SUPPORT_EMAIL],
             )
+            email.content_subtype = "html"
+
+            # Add attachments
+            for attachment in attachments:
+                email.attach(*attachment)
+
+            # Send email
+            email.send(fail_silently=False)
             print(
                 f"Property approval email sent successfully for: {property_instance.title}")
 
@@ -114,6 +147,20 @@ class PropertyList(generics.ListCreateAPIView):
             print(f"Failed to send property approval email: {str(e)}")
             # Don't raise error, just log it
             # Property creation was successful even if email fails
+
+    def _get_content_type(self, filename):
+        """Helper method to determine content type based on file extension"""
+        extension = filename.lower().split('.')[-1]
+        content_types = {
+            'pdf': 'application/pdf',
+            'doc': 'application/msword',
+            'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif'
+        }
+        return content_types.get(extension, 'application/octet-stream')
 
 
 class OwnPropertyList(generics.ListCreateAPIView):

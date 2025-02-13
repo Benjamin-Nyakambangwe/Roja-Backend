@@ -94,15 +94,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # httpsdocs.djangoproject.comen5.0refsettings#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'roja_db',
-#         'USER': 'postgres',
-#         'PASSWORD': '123456seven',
-#         'HOST': 'localhost'
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'roja_db',
+        'USER': 'postgres',
+        'PASSWORD': '123456seven',
+        'HOST': 'localhost'
+    }
+}
 
 
 DATABASES = {
@@ -116,6 +116,7 @@ DATABASES = {
 }
 
 # EMAIL GMAIL
+
 # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST = 'smtp.gmail.com'
 # EMAIL_PORT = 587

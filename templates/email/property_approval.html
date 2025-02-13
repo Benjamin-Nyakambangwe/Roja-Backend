@@ -79,6 +79,26 @@
         margin: 0 0 10px 0;
         color: #344e41;
       }
+      .owner-details {
+        background-color: #fff;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .verification-status {
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-size: 0.9em;
+      }
+      .verified {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .not-verified {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
     </style>
   </head>
   <body>
@@ -90,29 +110,53 @@
           style="display: block; margin: 0 auto; max-width: 200px; height: auto"
         />
         <h1>New Property Approval Required</h1>
+        <p>A new property has been submitted for approval on {{ site_name }}</p>
       </div>
       <div class="content">
-        <p>A new property has been added and requires your approval:</p>
+        <div class="owner-details">
+          <h2>Owner Information</h2>
+          <p><strong>Name:</strong> {{ owner.first_name }} {{ owner.last_name }}</p>
+          <p><strong>Email:</strong> {{ owner.email }}</p>
+          <p><strong>Phone:</strong> {{ owner_profile.phone }}</p>
+          <p><strong>Address:</strong> {{ owner_profile.address }}</p>
+          <p><strong>ID Number:</strong> {{ owner_profile.id_number }}</p>
+          
+          <h3>Verification Status</h3>
+          <p>
+            Phone Verification: 
+            <span class="verification-status {% if owner_profile.is_phone_verified %}verified{% else %}not-verified{% endif %}">
+              {% if owner_profile.is_phone_verified %}Verified{% else %}Not Verified{% endif %}
+            </span>
+          </p>
+          <!-- <p>
+            Profile Verification: 
+            <span class="verification-status {% if owner_profile.is_verified %}verified{% else %}not-verified{% endif %}">
+              {% if owner_profile.is_verified %}Verified{% else %}Not Verified{% endif %}
+            </span>
+          </p> -->
+          <p>
+            Profile Completion: 
+            <span class="verification-status {% if owner_profile.is_profile_complete %}verified{% else %}not-verified{% endif %}">
+              {% if owner_profile.is_profile_complete %}Complete{% else %}Incomplete{% endif %}
+            </span>
+          </p>
+        </div>
 
         <div class="property-details">
-          <h3>{{ property.title }}</h3>
-
-          <h4>Basic Information:</h4>
-          <p><strong>Owner:</strong> {{ property.owner.first_name }}</p>
-          <p><strong>Description:</strong> {{ property.description }}</p>
+          <h2>Property Details</h2>
+          <p><strong>Title:</strong> {{ property.title }}</p>
           <p><strong>Address:</strong> {{ property.address }}</p>
-          <p><strong>Type:</strong> {{ property.type.name }}</p>
-          <p><strong>Location:</strong> {{ property.location.name }}</p>
-
-          <h4>Financial Details:</h4>
           <p><strong>Price:</strong> ${{ property.price }}</p>
-          <p><strong>Deposit:</strong> ${{ property.deposit }}</p>
-          <p><strong>Pet Deposit:</strong> ${{ property.pet_deposit }}</p>
-
-          <h4>Property Specifications:</h4>
+          <p><strong>Type:</strong> {{ property.type }}</p>
+          <p><strong>Location:</strong> {{ property.location }}</p>
           <p><strong>Bedrooms:</strong> {{ property.bedrooms }}</p>
           <p><strong>Bathrooms:</strong> {{ property.bathrooms }}</p>
           <p><strong>Area:</strong> {{ property.area }} sq ft</p>
+          <p><strong>Description:</strong> {{ property.description }}</p>
+
+          <h4>Financial Details:</h4>
+          <p><strong>Deposit:</strong> ${{ property.deposit }}</p>
+          <p><strong>Pet Deposit:</strong> ${{ property.pet_deposit }}</p>
 
           <h4>Features & Policies:</h4>
           <ul>
@@ -192,7 +236,8 @@
           {% endif %}
         </div>
 
-        <div style="text-align: center">
+        <div style="text-align: center; margin-top: 30px;">
+          <p>Please review the attached documents (Affidavit and Proof of Residence) before making a decision.</p>
           <a
             href="https://ro-ja.com/approve/properties/{{ property.id }}"
             class="button approve"
