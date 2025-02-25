@@ -40,6 +40,15 @@ import random
 from django.core.mail import send_mail, EmailMessage
 from django.template.loader import render_to_string
 
+# from infobip_api_client.api_client import ApiClient, Configuration
+# from infobip_api_client.model.sms_advanced_textual_request import SmsAdvancedTextualRequest
+# from infobip_api_client.model.sms_destination import SmsDestination
+# from infobip_api_client.model.sms_textual_message import SmsTextualMessage
+# from infobip_api_client.api.send_sms_api import SendSmsApi
+
+import http.client
+import json
+
 
 # Property views
 class PropertyList(generics.ListCreateAPIView):
@@ -999,14 +1008,14 @@ class SendVerificationCodeView(APIView):
             # Get phone number based on user type
             if request.user.user_type == 'landlord':
                 try:
-                    profile = request.user.landlord_profile  # Changed from landlordprofile
+                    profile = request.user.landlord_profile
                 except:
                     return Response({
                         'error': 'Landlord profile not found'
                     }, status=status.HTTP_404_NOT_FOUND)
             else:
                 try:
-                    profile = request.user.tenant_profile  # Changed from tenantprofile
+                    profile = request.user.tenant_profile
                 except:
                     return Response({
                         'error': 'Tenant profile not found'
@@ -1026,22 +1035,46 @@ class SendVerificationCodeView(APIView):
                 verification_code=verification_code
             )
 
-            # Initialize Twilio client
-            client = Client(settings.TWILIO_ACCOUNT_SID,
-                            settings.TWILIO_AUTH_TOKEN)
+            # Create connection
+            conn = http.client.HTTPSConnection(settings.INFOBIP_BASE_URL)
 
-            # Send verification code
-            message = client.messages.create(
-                messaging_service_sid=settings.TWILIO_MESSAGING_SERVICE_SID,
-                body=f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes.",
-                from_=settings.TWILIO_PHONE_NUMBER,
-                to=profile.phone
-            )
-
-            return Response({
-                'success': True,
-                'message': 'Verification code sent successfully'
+            # Prepare payload
+            payload = json.dumps({
+                "messages": [
+                    {
+                        "destinations": [{"to": profile.phone}],
+                        "from": "263784313101",
+                        "text": f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes."
+                    }
+                ]
             })
+
+            # Prepare headers
+            headers = {
+                'Authorization': f'App {settings.INFOBIP_API_KEY}',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+
+            # Send request
+            conn.request("POST", "/sms/2/text/advanced", payload, headers)
+
+            # Get response
+            res = conn.getresponse()
+            data = res.read()
+
+            # Close connection
+            conn.close()
+
+            if res.status in [200, 201]:
+                return Response({
+                    'success': True,
+                    'message': 'Verification code sent successfully'
+                })
+            else:
+                return Response({
+                    'error': f'Failed to send SMS: {data.decode("utf-8")}'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Exception as e:
             print(f"Error sending verification code: {str(e)}")
@@ -1837,7 +1870,6 @@ class ProcessLeaseDocumentPaymentView(APIView):
                     payment.save()
                     print("TRACK 10")
                     return Response({
-
                         "message": "Payment processed successfully",
                         # "payment": LeaseDocumentPaymentSerializer(payment).data,
                         "poll_url": response.poll_url,

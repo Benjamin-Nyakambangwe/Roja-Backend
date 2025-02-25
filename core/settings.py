@@ -94,15 +94,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # httpsdocs.djangoproject.comen5.0refsettings#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'roja_db',
-        'USER': 'postgres',
-        'PASSWORD': '123456seven',
-        'HOST': 'localhost'
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'roja_db',
+#         'USER': 'postgres',
+#         'PASSWORD': '123456seven',
+#         'HOST': 'localhost'
+#     }
+# }
 
 
 DATABASES = {
@@ -326,3 +326,9 @@ TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
 TWILIO_MESSAGING_SERVICE_SID = os.getenv('TWILIO_MESSAGING_SERVICE_SID')
 
 SUPPORT_EMAIL = 'support@ro-ja.com'  # Update this with your actual support email
+
+
+# Replace with your Infobip API base URL
+INFOBIP_BASE_URL = os.getenv('INFOBIP_BASE_URL')
+# Replace with your Infobip API key
+INFOBIP_API_KEY = os.getenv('INFOBIP_API_KEY')
