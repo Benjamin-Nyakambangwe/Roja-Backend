@@ -293,6 +293,23 @@ class RentPayment(models.Model):
             self.status = 'OVERDUE'
         super().save(*args, **kwargs)
 
+    def update_landlord_balance(self):
+        """Update landlord balance when payment is completed"""
+        if self.status == 'PAID':
+            landlord = self.property.owner
+            from accounts.models import LandlordBalance
+
+            # Get or create landlord balance
+            balance, created = LandlordBalance.objects.get_or_create(
+                landlord=landlord)
+
+            # Update balance
+            balance.amount += self.amount
+            balance.save()
+
+            return True
+        return False
+
 
 class PhoneVerification(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL,

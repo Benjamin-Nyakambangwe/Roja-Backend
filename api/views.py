@@ -1,4 +1,4 @@
-from django.db.models import Q, Max, Count, Case, When, IntegerField, F
+from django.db.models import Q, Max, Count, Case, When, IntegerField, F, Avg
 from .serializers import ChatSerializer, MessageSerializer
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
@@ -754,6 +754,9 @@ class ProcessRentPaymentView(APIView):
                         payment.transaction_id = reference
                         payment.save()
 
+                        # Update landlord balance
+                        payment.update_landlord_balance()
+
                         # Create next month's payment
                         next_due_date = payment.due_date + \
                             timezone.timedelta(days=30)
@@ -1043,7 +1046,7 @@ class SendVerificationCodeView(APIView):
                 "messages": [
                     {
                         "destinations": [{"to": profile.phone}],
-                        "from": "263784313101",
+                        "from": "RO-JA",
                         "text": f"Your ROJA ACCOMODATION verification code is: {verification_code}. This code will expire in 5 minutes."
                     }
                 ]

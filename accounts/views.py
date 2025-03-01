@@ -42,6 +42,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from bs4 import BeautifulSoup
 from django.db.models import Avg
+from decimal import Decimal
+from accounts.models import LandlordBalance, WithdrawalRequest
 
 
 class CustomProviderAuthView(ProviderAuthView):
@@ -967,3 +969,149 @@ class TenantRatingListView(APIView):
             return Response({
                 'error': str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class LandlordBalanceView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != 'landlord':
+            return Response({
+                'error': 'Only landlords can access balance information'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        # Get or create balance
+        balance, created = LandlordBalance.objects.get_or_create(
+            landlord=request.user)
+
+        # Get recent transactions (rent payments for landlord properties)
+        properties = Property.objects.filter(owner=request.user)
+        transactions = RentPayment.objects.filter(
+            property__in=properties,
+            status='PAID'
+        ).order_by('-payment_date')[:10]
+
+        # Get pending withdrawal requests
+        withdrawal_requests = WithdrawalRequest.objects.filter(
+            landlord=request.user
+        ).order_by('-requested_at')[:5]
+
+        # Serialize the data
+        transaction_data = [{
+            'id': t.id,
+            'property': t.property.title,
+            'tenant': f"{t.tenant.first_name} {t.tenant.last_name}",
+            'amount': t.amount,
+            'payment_date': t.payment_date,
+            'transaction_id': t.transaction_id
+        } for t in transactions]
+
+        withdrawal_data = [{
+            'id': w.id,
+            'amount': w.amount,
+            'status': w.status,
+            'reference': w.reference,
+            'requested_at': w.requested_at,
+            'processed_at': w.processed_at
+        } for w in withdrawal_requests]
+
+        return Response({
+            'balance': balance.amount,
+            'last_updated': balance.last_updated,
+            'recent_transactions': transaction_data,
+            'withdrawal_requests': withdrawal_data
+        })
+
+
+class CreateWithdrawalRequestView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        if request.user.user_type != 'landlord':
+            return Response({
+                'error': 'Only landlords can request withdrawals'
+            }, status=status.HTTP_403_FORBIDDEN)
+
+        amount = request.data.get('amount')
+        payment_method = request.data.get('payment_method')
+        bank_name = request.data.get('bank_name')
+        account_number = request.data.get('account_number')
+        account_name = request.data.get('account_name')
+        notes = request.data.get('notes')
+
+        if not amount:
+            return Response({
+                'error': 'Amount is required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount = Decimal(amount)
+        except:
+            return Response({
+                'error': 'Amount must be a valid number'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if landlord has sufficient balance
+        balance, created = LandlordBalance.objects.get_or_create(
+            landlord=request.user)
+
+        if balance.amount < amount:
+            return Response({
+                'error': 'Insufficient balance for withdrawal',
+                'current_balance': balance.amount,
+                'requested_amount': amount
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create withdrawal request
+        withdrawal = WithdrawalRequest.objects.create(
+            landlord=request.user,
+            amount=amount,
+            payment_method=payment_method,
+            bank_name=bank_name,
+            account_number=account_number,
+            account_name=account_name,
+            notes=notes
+        )
+
+        # Reduce balance immediately to prevent double withdrawals
+        balance.amount -= amount
+        balance.save()
+
+        # Send notification to admin
+        self.notify_admin(withdrawal)
+
+        return Response({
+            'success': True,
+            'message': 'Withdrawal request submitted successfully',
+            'reference': withdrawal.reference,
+            'amount': withdrawal.amount,
+            'new_balance': balance.amount
+        })
+
+    def notify_admin(self, withdrawal):
+        """Send notification to admin about new withdrawal request"""
+        try:
+            subject = f"New Withdrawal Request: {withdrawal.reference}"
+            message = f"""
+            A new withdrawal request has been submitted:
+            
+            Reference: {withdrawal.reference}
+            Landlord: {withdrawal.landlord.email} ({withdrawal.landlord.first_name} {withdrawal.landlord.last_name})
+            Amount: ${withdrawal.amount}
+            Payment Method: {withdrawal.payment_method or 'Not specified'}
+            Bank: {withdrawal.bank_name or 'Not specified'}
+            Account: {withdrawal.account_number or 'Not specified'} ({withdrawal.account_name or 'Not specified'})
+            Notes: {withdrawal.notes or 'None'}
+            
+            Please process this request through the admin interface.
+            """
+
+            send_mail(
+                subject,
+                message,
+                settings.EMAIL_HOST_USER,
+                [settings.SUPPORT_EMAIL],
+                fail_silently=False
+            )
+        except Exception as e:
+            print(f"Failed to send admin notification: {str(e)}")
