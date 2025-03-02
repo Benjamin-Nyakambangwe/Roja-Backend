@@ -3,31 +3,44 @@ from . import views
 
 urlpatterns = [
     # Property URLs
-    path('properties-filter/', views.PropertyListCreateView.as_view(), name='property-list-create'),
+    path('properties-filter/', views.PropertyListCreateView.as_view(),
+         name='property-list-create'),
     path('properties/', views.PropertyList.as_view(), name='property-list'),
-    path('own-properties/', views.OwnPropertyList.as_view(), name='own-property-list'),
-    path('properties/<int:pk>/', views.PropertyDetail.as_view(), name='property-detail'),
+    path('own-properties/', views.OwnPropertyList.as_view(),
+         name='own-property-list'),
+    path('properties/<int:pk>/', views.PropertyDetail.as_view(),
+         name='property-detail'),
 
     # PropertyImage URLs
-    path('property-images/', views.PropertyImageList.as_view(), name='propertyimage-list'),
-    path('property-images/<int:pk>/', views.PropertyImageDetail.as_view(), name='propertyimage-detail'),
+    path('property-images/', views.PropertyImageList.as_view(),
+         name='propertyimage-list'),
+    path('property-images/<int:pk>/', views.PropertyImageDetail.as_view(),
+         name='propertyimage-detail'),
 
-    #HouseType and Location URLs
+    # HouseType and Location URLs
     path('house-types/', views.HouseTypeList.as_view(), name='housetype-list'),
-    path('house-types/<int:pk>/', views.HouseTypeDetail.as_view(), name='housetype-detail'),
-    path('house-locations/', views.HouseLocationList.as_view(), name='houselocation-list'),
-    path('house-locations/<int:pk>/', views.HouseLocationDetail.as_view(), name='houselocation-detail'),
+    path('house-types/<int:pk>/', views.HouseTypeDetail.as_view(),
+         name='housetype-detail'),
+    path('house-locations/', views.HouseLocationList.as_view(),
+         name='houselocation-list'),
+    path('house-locations/<int:pk>/', views.HouseLocationDetail.as_view(),
+         name='houselocation-detail'),
 
 
     # Application URLs
     path('applications/', views.ApplicationList.as_view(), name='application-list'),
-    path('applications/<int:pk>/', views.ApplicationDetail.as_view(), name='application-detail'),
+    path('applications/<int:pk>/', views.ApplicationDetail.as_view(),
+         name='application-detail'),
 
     # Message URLs
-    path('messages/', views.MessageListCreateView.as_view(), name='message-list-create'),
-    path('messages/<int:pk>/', views.MessageDetailView.as_view(), name='message-detail'),
-    path('messages/unread-count/', views.UnreadMessageCountView.as_view(), name='unread-message-count'),
-    path('messages/<int:pk>/mark-read/', views.MarkMessageAsReadView.as_view(), name='mark-message-read'),
+    path('messages/', views.MessageListCreateView.as_view(),
+         name='message-list-create'),
+    path('messages/<int:pk>/', views.MessageDetailView.as_view(),
+         name='message-detail'),
+    path('messages/unread-count/', views.UnreadMessageCountView.as_view(),
+         name='unread-message-count'),
+    path('messages/<int:pk>/mark-read/',
+         views.MarkMessageAsReadView.as_view(), name='mark-message-read'),
 
     # # LeaseAgreement URLs
     # path('lease-agreements/', views.LeaseAgreementList.as_view(), name='leaseagreement-list'),
@@ -41,58 +54,79 @@ urlpatterns = [
     # Comment URLs
     path('comments/', views.CommentList.as_view(), name='comment-list'),
     path('comments/<int:pk>/', views.CommentDetail.as_view(), name='comment-detail'),
-    path('properties/<int:property_id>/comments/', views.PropertyCommentList.as_view(), name='property-comment-list'),
+    path('properties/<int:property_id>/comments/',
+         views.PropertyCommentList.as_view(), name='property-comment-list'),
 
     # Chat URLs
     path('chats/', views.ChatListView.as_view(), name='chat-list'),
     path('chats/<int:user_id>/', views.ChatDetailView.as_view(), name='chat-detail'),
 
     # New URL pattern for AvailableChatsView
-    path('available-chats/', views.AvailableChatsView.as_view(), name='available-chats'),
+    path('available-chats/', views.AvailableChatsView.as_view(),
+         name='available-chats'),
 
     # New URL patterns for reviews
-    path('properties-reviews/<int:property_id>', views.PropertyReviewList.as_view(), name='property-review-list'),
-    path('users-reviews/<int:user_id>', views.UserReviewList.as_view(), name='user-review-list'),
+    path('properties-reviews/<int:property_id>',
+         views.PropertyReviewList.as_view(), name='property-review-list'),
+    path('users-reviews/<int:user_id>',
+         views.UserReviewList.as_view(), name='user-review-list'),
 
-    
+
     path('current-user/', views.CurrentUserView.as_view(), name='current-user'),
 
     # Add these to your urlpatterns
-    path('comments/<int:pk>/like/', views.CommentLikeView.as_view(), name='comment-like'),
-    path('comments/<int:pk>/dislike/', views.CommentDislikeView.as_view(), name='comment-dislike'),
+    path('comments/<int:pk>/like/',
+         views.CommentLikeView.as_view(), name='comment-like'),
+    path('comments/<int:pk>/dislike/',
+         views.CommentDislikeView.as_view(), name='comment-dislike'),
 
     # Add these to your urlpatterns
-    path('rent-payments/', views.RentPaymentListView.as_view(), name='rent-payment-list'),
-    path('properties/<int:property_id>/rent-payments/', views.PropertyRentPaymentsView.as_view(), name='property-rent-payments'),
-    path('rent-payments/<int:payment_id>/process/', views.ProcessRentPaymentView.as_view(), name='process-rent-payment'),
+    path('rent-payments/', views.RentPaymentListView.as_view(),
+         name='rent-payment-list'),
+    path('properties/<int:property_id>/rent-payments/',
+         views.PropertyRentPaymentsView.as_view(), name='property-rent-payments'),
+    path('rent-payments/<int:payment_id>/process/',
+         views.ProcessRentPaymentView.as_view(), name='process-rent-payment'),
 
     # Add this to your urlpatterns
-    path('tenant-accessible-properties/', views.TenantAccessibleProperties.as_view(), name='tenant-accessible-properties'),
-    path('tenant-current-property/', views.TenantCurrentProperty.as_view(), name='tenant-current-property'),
+    path('tenant-accessible-properties/', views.TenantAccessibleProperties.as_view(),
+         name='tenant-accessible-properties'),
+    path('tenant-current-property/', views.TenantCurrentProperty.as_view(),
+         name='tenant-current-property'),
 
     # Add this to your urlpatterns
-    path('generate-property-description/', views.GeneratePropertyDescriptionView.as_view(), name='generate-property-description'),
+    path('generate-property-description/', views.GeneratePropertyDescriptionView.as_view(),
+         name='generate-property-description'),
 
     # Add this to your urlpatterns
     path('send-sms/', views.SendSMSView.as_view(), name='send-sms'),
 
-    path('send-verification-code/', views.SendVerificationCodeView.as_view(), name='send-verification-code'),
-    path('verify-phone-code/', views.VerifyPhoneCodeView.as_view(), name='verify-phone-code'),
+    path('send-verification-code/', views.SendVerificationCodeView.as_view(),
+         name='send-verification-code'),
+    path('verify-phone-code/', views.VerifyPhoneCodeView.as_view(),
+         name='verify-phone-code'),
 
-    path('comments/<int:comment_id>/reply/', views.CommentReplyView.as_view(), name='comment-reply'),
+    path('comments/<int:comment_id>/reply/',
+         views.CommentReplyView.as_view(), name='comment-reply'),
 
-    path('properties/<int:property_id>/approve/', views.ApprovePropertyView.as_view(), name='approve-property'),
-    path('properties/<int:property_id>/disapprove/', views.DisapprovePropertyView.as_view(), name='disapprove-property'),
+    path('properties/<int:property_id>/approve/',
+         views.ApprovePropertyView.as_view(), name='approve-property'),
+    path('properties/<int:property_id>/disapprove/',
+         views.DisapprovePropertyView.as_view(), name='disapprove-property'),
 
     path('contact/', views.ContactFormView.as_view(), name='contact-form'),
 
-    path('update-landlord-ratings/', views.UpdateLandlordRatingsView.as_view(), name='update-landlord-ratings'),
+    path('update-landlord-ratings/', views.UpdateLandlordRatingsView.as_view(),
+         name='update-landlord-ratings'),
 
-    path('analyze-comments/', views.AnalyzeCommentSentimentsView.as_view(), name='analyze-comments'),
+    path('analyze-comments/', views.AnalyzeCommentSentimentsView.as_view(),
+         name='analyze-comments'),
 
-    path('update-property-ratings/', views.UpdatePropertyRatingsView.as_view(), name='update-property-ratings'),
+    path('update-property-ratings/', views.UpdatePropertyRatingsView.as_view(),
+         name='update-property-ratings'),
 
-    path('process-lease-document-payment/', views.ProcessLeaseDocumentPaymentView.as_view(), name='process-lease-document-payment'),
+    path('process-lease-document-payment/', views.ProcessLeaseDocumentPaymentView.as_view(),
+         name='process-lease-document-payment'),
 
 
 ]
