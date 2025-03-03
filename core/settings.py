@@ -108,7 +108,7 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'roja_db',
+        'NAME': 'roja_prod',
         'USER': 'ben',
         'PASSWORD': '123456seven',
         'HOST': 'localhost'
@@ -144,7 +144,7 @@ EMAIL_HOST = 'mail.privateemail.com'  # Namecheap's SMTP server
 EMAIL_PORT = 587  # Use TLS
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'no-reply@ro-ja.com'  # Your full email address
-EMAIL_HOST_PASSWORD = 'No-reply@roja1*'  # Your email password
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 
 # Optional: Set default "from" email address
 DEFAULT_FROM_EMAIL = 'no-reply@ro-ja.com'
